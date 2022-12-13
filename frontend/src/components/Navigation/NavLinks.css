@@ -1,0 +1,42 @@
+.nav-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#MyAccount-button {
+    width: max-content;
+}
+
+
+@media (min-width: 768px) {
+    .nav-links {
+        flex-direction: row;
+    }
+
+    .nav-links li {
+        margin: 0 0.5rem;
+    }
+
+    .nav-links a {
+        color: white;
+        text-decoration: none;
+    }
+
+    .nav-links button {
+        border: 1px solid white;
+        color: white;
+        background: transparent;
+    }
+
+    .nav-links button:hover,
+    .nav-links button:active {
+        color: #292929;
+    }
+}

@@ -1,0 +1,88 @@
+.MuiTableRow-hover {
+        cursor: pointer;
+}
+
+.MuiTableHead-root{
+        background-color: #e0e0e0;
+
+}
+
+.MuiTableCell-head{
+        font-weight: bold !important;
+}
+
+#alert-dialog-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        background-color: coral
+}
+.schedule-dialog-time {
+        font-size: 2rem;
+        font-weight: bold;
+        color: coral;
+}
+
+.schedule-dialog-name {
+        margin-top: 30px;
+        font-size: 1.5rem;
+        font-weight: bold;
+}
+
+.schedule-dialog-description {
+        margin-top: 15px;
+        font-size: 1.1rem;
+}
+
+.schedule-dialog-coach {
+        margin-top: 30px;
+        font-size: 1rem;
+}
+
+.schedule-dialog-category {
+        margin-top: 10px;
+        font-size: 1rem;
+}
+
+.schedule-dialog-spots {
+        margin-top: 20px;
+        font-size: 1rem;
+        font-weight: bold;
+}
+
+#schedule-name {
+        font-size: 1rem;
+        font-weight: 700;
+        font-style: Roboto;
+}
+
+#schedule-time{
+        font-size: 1rem;
+        font-style: Roboto;
+        font-weight: bolder;
+        color: coral;
+}
+
+#schedule-head-cell th {
+        font-size: 1.2rem;
+        font-weight: bolder;
+}
+
+#schedule-category-cell {
+
+        font-style: Roboto;
+}
+
+#schedule-date-cell {
+        font-size: 1rem;
+        font-weight: 700;
+        font-style: Roboto;
+}
+
+.schedule-dialog-studio {
+        margin-top: 5px;
+        font-size: 1rem;
+        font-weight: 700;
+        font-style: Roboto;
+        color: #000;
+}
