@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ScheduleTable from '../ScheduleTable/ScheduleTable';
 import { useNavigate } from 'react-router-dom';
 import { UserSchedulePagination } from '../Pagination/Pagination';
+import { API_BASE_URL } from '../../../config';
 
 const UserClassHistory = () => {
 	const [classes, setClasses] = useState([]);
@@ -16,7 +17,7 @@ const UserClassHistory = () => {
 		if (token === null) {
 			navigate('/login');
 		}
-		fetch(`http://127.0.0.1:8000/classes/history?offset=${offset}`, {
+		fetch(`${API_BASE_URL}/classes/history?offset=${offset}`, {
 			headers: {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
@@ -30,7 +31,7 @@ const UserClassHistory = () => {
 			});
 
 		fetch(
-			`http://127.0.0.1:8000/studios/all/?longitude=${1}&latitude=${1}&offset=${0}&limit=${50}`
+			`${API_BASE_URL}/studios/all/?longitude=${1}&latitude=${1}&offset=${0}&limit=${50}`
 		)
 			.then((res) => res.json())
 			.then((json) => {

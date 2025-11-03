@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../config';
 
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
@@ -20,7 +21,7 @@ export default function History() {
 
 
     useEffect(() => {
-        fetch('http://localhost:8000/subscription/payment/history/', {
+        fetch(`${API_BASE_URL}/subscription/payment/history/`, {
             method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(response => {

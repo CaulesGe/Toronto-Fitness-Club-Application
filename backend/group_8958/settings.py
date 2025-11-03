@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +28,18 @@ SECRET_KEY = "django-insecure-63c*7v1d7)((^2p_aq=tpqh!rmi)gh59ndkbxe2!2sl@7*di!^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    # backend service names (cover all cluster DNS forms)
+    "tfc-backend",
+    "tfc-backend.acmeair-group1.svc",
+    "tfc-backend.acmeair-group1.svc.cluster.local",
+
+    # your public routes (nice to keep too)
+    "tfc-backend-acmeair-group1.mycluster-ca-tor-1-835845-04e8c71ff333c8969bc4cbc5a77a70f6-0000.ca-tor.containers.appdomain.cloud",
+    "tfc-frontend-acmeair-group1.mycluster-ca-tor-1-835845-04e8c71ff333c8969bc4cbc5a77a70f6-0000.ca-tor.containers.appdomain.cloud",
+
+    "localhost", "127.0.0.1",
+]
 
 
 # Application definition
@@ -84,12 +97,16 @@ WSGI_APPLICATION = "group_8958.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+url = os.environ.get("DATABASE_URL", "sqlite:///dev.db")
+db = dj_database_url.parse(url, conn_max_age=600)
+
+# Only add SSL options when using Postgres
+if db.get("ENGINE", "").endswith("postgresql"):
+    db.setdefault("OPTIONS", {})
+    # neon already uses sslmode=require in the URL, but this is a safe guard
+    db["OPTIONS"].setdefault("sslmode", "require")
+
+DATABASES = {"default": db}
 
 
 # Password validation

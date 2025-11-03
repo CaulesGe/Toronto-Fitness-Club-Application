@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../config';
 
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -62,7 +63,7 @@ export default function Edit() {
 
 
    useEffect(() => {
-      fetch('http://localhost:8000/subscription/plans/', {
+      fetch(`${API_BASE_URL}/subscription/plans/`, {
          method: 'GET'
       })
          .then(response => response.json())
@@ -72,7 +73,7 @@ export default function Edit() {
    }, [])
 
    useEffect(() => {
-      fetch('http://localhost:8000/subscription/payment/future/', {
+      fetch(`${API_BASE_URL}/subscription/payment/future/`, {
          method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
       })
          .then(response => response.json())
@@ -82,7 +83,7 @@ export default function Edit() {
    }, [current])
 
    useEffect(() => {
-      fetch('http://localhost:8000/subscription/manage/', {
+      fetch(`${API_BASE_URL}/subscription/manage/`, {
          method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
       })
          .then(response => {
@@ -102,7 +103,7 @@ export default function Edit() {
       console.log(event.currentTarget)
       const data = new FormData(event.currentTarget);
       data.append('plan', select)
-      fetch('http://localhost:8000/subscription/manage/', {
+      fetch(`${API_BASE_URL}/subscription/manage/`, {
          method: 'PUT', body: data, headers: { 'Authorization': `Bearer ${token}` }
       })
          .then(response => {
@@ -123,7 +124,7 @@ export default function Edit() {
 
       if (confirmBox) {
          setSuccess(true)
-         fetch('http://localhost:8000/subscription/manage/', {
+         fetch(`${API_BASE_URL}/subscription/manage/`, {
             method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
          })
             .then(() => setRedirect(true))

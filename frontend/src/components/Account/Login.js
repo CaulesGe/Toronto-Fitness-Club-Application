@@ -11,6 +11,7 @@ import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 import { useState } from 'react';
+import { API_BASE_URL } from '../../config';
 
 const theme = createTheme()
 
@@ -21,7 +22,7 @@ export default function Login() {
 	const handleSubmit = (event) => {
 		event.preventDefault();
 		const data = new FormData(event.currentTarget);
-		fetch('http://localhost:8000/accounts/login/', {
+		fetch(`${API_BASE_URL}/accounts/login/`, {
 			method: 'POST',
 			body: data,
 		})

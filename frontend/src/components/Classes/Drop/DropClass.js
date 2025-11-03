@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../../config';
+
 const DropClass = (
 	classID,
 	reload,
@@ -8,7 +10,7 @@ const DropClass = (
 ) => {
 	let token = localStorage.getItem('token');
 
-	fetch(`http://127.0.0.1:8000/classes/drop`, {
+	fetch(`${API_BASE_URL}/classes/drop`, {
 		method: 'POST',
 		headers: {
 			Accept: 'application/json',

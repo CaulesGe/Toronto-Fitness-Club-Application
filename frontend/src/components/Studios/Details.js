@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../config';
 import AppBar from '@mui/material/AppBar';
 import Button from '@mui/material/Button';
 
@@ -29,7 +30,7 @@ export default function Details() {
 	let navigate = useNavigate();
 
 	useEffect(() => {
-		fetch(`http://127.0.0.1:8000/studios/${studioId}/details`)
+		fetch(`${API_BASE_URL}/studios/${studioId}/details`)
 			.then((res) => res.json())
 			.then((json) => {
 				setInfo(json);
@@ -193,13 +194,14 @@ https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destinati
 					<div className="images">
 						<ImageList sx={{ width: 500, height: 450 }} cols={3} rowHeight={164}>
 						{info &&
-							info.images !== [] &&
-							info.images.map((x, index) => (
-								<ImageListItem key={index}>
-									<img key={index} class="center" src={x} alt="" width="500" height="600" />
-								</ImageListItem>
-								
-							))}
+								Array.isArray(info.images) &&
+								info.images.length > 0 &&
+								info.images.map((x, index) => (
+									<ImageListItem key={index}>
+										<img key={index} className="center" src={x} alt="" width="500" height="600" />
+									</ImageListItem>
+									
+								))}
 						</ImageList>	
 					</div>
 				</Container>

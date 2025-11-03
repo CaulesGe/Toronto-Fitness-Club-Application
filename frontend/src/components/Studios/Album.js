@@ -14,6 +14,7 @@ import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import React, {useState, useEffect, useMemo} from "react";
 import { Link } from 'react-router-dom';
+import { API_BASE_URL } from '../../config';
 import './Album.css';
 import {GoogleMap, useLoadScript, MarkerF} from '@react-google-maps/api';
 import TextField from '@mui/material/TextField';
@@ -56,7 +57,7 @@ export default function Album() {
     }, [longitude, latitude, whetherGetLocation])
     
     useEffect(() => {
-         fetch(`http://127.0.0.1:8000/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * 9}&limit=9`)
+         fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * 9}&limit=9`)
         .then(res => res.json())
         .then(json => {setStudios(json.results)
           setTotalItem(json.count);

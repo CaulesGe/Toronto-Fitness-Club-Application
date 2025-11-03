@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../config';
 
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -25,7 +26,7 @@ export default function Add() {
     const [redirect, setRedirect] = useState(false)
 
     useEffect(() => {
-        fetch('http://localhost:8000/subscription/manage/', {
+        fetch(`${API_BASE_URL}/subscription/manage/`, {
             method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(response => {
@@ -35,7 +36,7 @@ export default function Add() {
     }, [])
 
     useEffect(() => {
-        fetch('http://localhost:8000/subscription/plans/', {
+        fetch(`${API_BASE_URL}/subscription/plans/`, {
             method: 'GET'
         })
             .then(response => response.json())
@@ -47,7 +48,7 @@ export default function Add() {
         console.log(event.currentTarget)
         const data = new FormData(event.currentTarget);
         data.append('plan', select)
-        fetch('http://localhost:8000/subscription/manage/', {
+        fetch(`${API_BASE_URL}/subscription/manage/`, {
             method: 'POST', body: data, headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(response => {

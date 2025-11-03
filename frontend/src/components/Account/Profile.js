@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import * as React from 'react';
+import { API_BASE_URL } from '../../config';
 
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -105,7 +106,7 @@ const Edit = ({ account }) => {
       const token = localStorage.getItem('token')
       event.preventDefault();
       const data = new FormData(event.currentTarget);
-      fetch('http://localhost:8000/accounts/profile/', {
+      fetch(`${API_BASE_URL}/accounts/profile/`, {
          method: 'PUT', body: data, headers: { 'Authorization': `Bearer ${token}` }
       })
          .then(response => response.json())
@@ -290,7 +291,7 @@ export default function Profile() {
    const token = localStorage.getItem('token')
 
    useEffect(() => {
-      fetch('http://localhost:8000/accounts/profile/', {
+      fetch(`${API_BASE_URL}/accounts/profile/`, {
          method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
       })
          .then(response => {

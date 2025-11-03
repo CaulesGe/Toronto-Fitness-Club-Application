@@ -10,6 +10,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 import { useEffect, useState } from "react";
 import { Navigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../config';
 
 const theme = createTheme();
 
@@ -41,7 +42,7 @@ export default function Register() {
    const handleSubmit = (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
-      fetch('http://localhost:8000/accounts/register/', {
+      fetch(`${API_BASE_URL}/accounts/register/`, {
          method: 'POST', body: data
       })
          .then(response => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config';
 import ScheduleTable from '../ScheduleTable/ScheduleTable';
 import Pagination from '@mui/material/Pagination';
 import TextField from '@mui/material/TextField';
@@ -177,7 +178,7 @@ const StudioSchedule = () => {
 				end_time_query = `${end_time.getHours()}:${end_time.getMinutes()}`;
 		}
 
-		const url = `http://127.0.0.1:8000/studios/${
+		const url = `${API_BASE_URL}/studios/${
 			query.studioID
 		}/classes?search=${query.search}&offset=${query.offset}${
 			start_date_query ? `&start_date=${start_date_query}` : ''
@@ -200,7 +201,7 @@ const StudioSchedule = () => {
 			});
 
 		fetch(
-			`http://127.0.0.1:8000/studios/all/?longitude=${1}&latitude=${1}&offset=${0}&limit=${50}`
+			`${API_BASE_URL}/studios/all/?longitude=${1}&latitude=${1}&offset=${0}&limit=${50}`
 		)
 			.then((res) => res.json())
 			.then((json) => {

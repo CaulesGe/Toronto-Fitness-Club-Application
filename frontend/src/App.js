@@ -18,6 +18,7 @@ import { Navigate } from 'react-router-dom';
 import Link from '@mui/material/Link';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from './config';
 
 
 const MainPage = () => {
@@ -25,7 +26,7 @@ const MainPage = () => {
    const [count, setCount] = useState()
 
    useEffect(() => {
-      fetch('http://localhost:8000/studios/all/?longitude=0&latitude=0')
+      fetch(`${API_BASE_URL}/studios/all/?longitude=0&latitude=0`)
          .then(response => response.json())
          .then(data => setCount(data.count))
    }, [])
