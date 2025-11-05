@@ -171,3 +171,7 @@ oc get deploy,svc,route -l app.kubernetes.io/managed-by!=Helm || true
 cat <<EOF
 
 EOF
+
+# Restart backend deployment to apply migrations
+#oc rollout restart deploy/tfc-backend
+#oc rsh deploy/tfc-backend python manage.py migrate 

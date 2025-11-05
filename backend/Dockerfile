@@ -23,6 +23,12 @@ RUN pip install --upgrade pip \
 # Copy the rest of the application code
 COPY . /app
 
+# Ensure media and static directories exist and are writable by an arbitrary UID
+# OpenShift often runs containers with a random non-root UID; make these dirs world
+# writable so file uploads (avatars) and collectstatic can write files.
+RUN mkdir -p /app/media /app/static && \
+    chmod -R 0777 /app/media /app/static
+
 # Expose gunicorn port
 EXPOSE 8000
 

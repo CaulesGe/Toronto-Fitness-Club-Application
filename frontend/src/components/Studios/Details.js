@@ -30,7 +30,9 @@ export default function Details() {
 	let navigate = useNavigate();
 
 	useEffect(() => {
-		fetch(`${API_BASE_URL}/studios/${studioId}/details`)
+		// Ensure trailing slash so Django/DRF doesn't issue a 301 redirect
+		// (APPEND_SLASH behavior). Backend endpoints expect a trailing slash.
+		fetch(`${API_BASE_URL}/studios/${studioId}/details/`)
 			.then((res) => res.json())
 			.then((json) => {
 				setInfo(json);
