@@ -12,9 +12,8 @@ from django_filters import rest_framework as django_filters
 from rest_framework import filters
 
 from geopy import distance
-import requests
-import json
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import LimitOffsetPagination
 # Create your views here.
 
 
@@ -22,13 +21,20 @@ class DetailsView(APIView):
     def get(self, request, *args, **kwargs):
         target = get_object_or_404(studio, id=kwargs["studio_id"])
         temp = []
-        ip = requests.get("https://api.ipify.org?format=json")
-        ip_data = json.loads(ip.text)
-        res = requests.get("http://ip-api.com/json/" + ip_data["ip"])
-        location_data = res.text
-        data = json.loads(location_data)
-        user_lon = data["lon"]
-        user_lat = data["lat"]
+        
+        # Get user location from query parameters instead of IP geolocation
+        longitude = request.query_params.get('longitude')
+        latitude = request.query_params.get('latitude')
+        
+        if longitude and latitude and isfloat(longitude) and isfloat(latitude):
+            user_lon = float(longitude)
+            user_lat = float(latitude)
+            d = distance.distance((user_lat, user_lon), (target.latitude, target.longitude)).km
+            distance_km = round(d, 2)
+        else:
+            # If no coordinates provided, set distance as None or 0
+            distance_km = None
+        
         for image in images.objects.all():
             if image.studio == target:
                 absolute_url = (
@@ -43,22 +49,21 @@ class DetailsView(APIView):
             if a.studio == target:
                 amenities.append({"type": a.type, "quantity": a.quantity})
 
-        d = str(
-            distance.distance((user_lat, user_lon), (target.latitude, target.longitude))
-        ).split(" ")
-        return Response(
-            {
-                "name": target.name,
-                "address": target.address,
-                "longitude": target.longitude,
-                "latitude": target.latitude,
-                "postal code": target.postal_code,
-                "phone number": target.phone_number,
-                "distance (km)": float(d[0]),
-                "amenities": amenities,
-                "images": temp,
-            }
-        )
+        response_data = {
+            "name": target.name,
+            "address": target.address,
+            "longitude": target.longitude,
+            "latitude": target.latitude,
+            "postal code": target.postal_code,
+            "phone number": target.phone_number,
+            "amenities": amenities,
+            "images": temp,
+        }
+        
+        if distance_km is not None:
+            response_data["distance (km)"] = distance_km
+        
+        return Response(response_data)
 
 
 
@@ -97,6 +102,8 @@ class studioView(ListAPIView):
         "classes__name",
         "classes__coach",
     )
+    filterset_class = StudioFilter
+    pagination_class = LimitOffsetPagination
     
     lookup_url_kwarg1 = "longitude"
     lookup_url_kwarg2 = "latitude"
@@ -112,22 +119,37 @@ class studioView(ListAPIView):
             longitude = float(longitude)
             latitude = float(latitude)
 
-            if 90 >= longitude >= -90 and 90 >= latitude >= -90:
-                for x in studio.objects.all():
-                    user_lon = longitude
-                    user_lat = latitude
-                    d = str(
-                        distance.distance((user_lat, user_lon), (x.latitude, x.longitude))
-                    ).split(" ")
-                    x.distance = float(d[0])
-                    x.save()
-            else:
-                raise ValidationError(detail="longitude and latitude should between -90 and 90")
+            if not (-180 <= longitude <= 180 and -90 <= latitude <= 90):
+                raise ValidationError(detail="longitude should be between -180 and 180, latitude between -90 and 90")
         else:
             raise ValidationError(detail="longitude and latitude are required")
     
-        queryset = studio.objects.all().order_by('distance').values()
-   
-        return queryset
-   
-    filterset_class = StudioFilter
+        # Return the base queryset - we'll calculate distances later
+        return studio.objects.all()
+    
+    def list(self, request, *args, **kwargs):
+        # Get the filtered queryset (after search/filter backends are applied)
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Get user coordinates
+        longitude = float(request.query_params.get('longitude'))
+        latitude = float(request.query_params.get('latitude'))
+        
+        # Calculate distances and sort
+        studios_with_distance = []
+        for s in queryset:
+            d = distance.distance((latitude, longitude), (s.latitude, s.longitude)).km
+            s.distance = d  # Add as attribute (not saved to DB)
+            studios_with_distance.append(s)
+        
+        # Sort by distance
+        studios_with_distance.sort(key=lambda x: x.distance)
+        
+        # Paginate the sorted results
+        page = self.paginate_queryset(studios_with_distance)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(studios_with_distance, many=True)
+        return Response(serializer.data)

@@ -25,63 +25,55 @@ export default function Details() {
 	const [info, setInfo] = useState();
   const [longitude, setLongitude] = useState();
   const [latitude, setLatitude] = useState();
+  const [locationError, setLocationError] = useState('');
   
 
 	let navigate = useNavigate();
 
+	// Get user's geolocation on mount
 	useEffect(() => {
-		// Ensure trailing slash so Django/DRF doesn't issue a 301 redirect
-		// (APPEND_SLASH behavior). Backend endpoints expect a trailing slash.
-		fetch(`${API_BASE_URL}/studios/${studioId}/details/`)
-			.then((res) => res.json())
-			.then((json) => {
-				setInfo(json);
-			});
-	}, [studioId]);
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(
+				(position) => {
+					setLongitude(position.coords.longitude);
+					setLatitude(position.coords.latitude);
+				},
+				(error) => {
+					switch(error.code) {
+						case error.PERMISSION_DENIED:
+							setLocationError("User denied the request for Geolocation. Please enable this feature in settings.");
+							break;
+						case error.POSITION_UNAVAILABLE:
+							setLocationError("Location information is unavailable.");
+							break;
+						case error.TIMEOUT:
+							setLocationError("The request to get user location timed out.");
+							break;
+						default:
+							setLocationError("An unknown error occurred.");
+							break;
+					}
+				}
+			);
+		} else {
+			setLocationError("Geolocation is not supported by this browser.");
+		}
+	}, []);
 
-  getLocation();
-
-  var x = document.getElementById("demo");
-
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
-        
-      } else { 
-        x.innerHTML = "Geolocation is not supported by this browser.";
-      }
-    }
-
-    function showPosition(position) {
-      
-      if (x) {
-        setLongitude(position.coords.longitude);
-        setLatitude(position.coords.latitude);
-      }
-      
-    }
-
-    function showError(error) {
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          x.innerHTML = "User denied the request for Geolocation." + " <a href='https://support.google.com/chrome/answer/142065?hl=en'>Please enable this feature in setting.</a>"
-          break;
-        case error.POSITION_UNAVAILABLE:
-          x.innerHTML = "Location information is unavailable."
-          break;
-        case error.TIMEOUT:
-          x.innerHTML = "The request to get user location timed out."
-          break;
-        case error.UNKNOWN_ERROR:
-          x.innerHTML = "An unknown error occurred."
-          break;
-      }
-    }
+	// Fetch studio details when we have coordinates
+	useEffect(() => {
+		if (longitude !== undefined && latitude !== undefined) {
+			fetch(`${API_BASE_URL}/studios/${studioId}/details/?longitude=${longitude}&latitude=${latitude}`)
+				.then((res) => res.json())
+				.then((json) => {
+					setInfo(json);
+				});
+		}
+	}, [studioId, longitude, latitude]);
 
   const openInNewTab = url => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
-
 
 
 	return (
@@ -139,12 +131,22 @@ https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destinati
 
 				</Box>
 
-
-
 				<Container sx={{ py: 8 }} maxWidth="md">
 					{/* End hero unit */}
-          <p id="demo"></p>
           
+					{/* Show location error if any */}
+					{locationError && (
+						<Typography variant="body1" color="error" align="center" sx={{ mb: 2 }}>
+							{locationError}
+						</Typography>
+					)}
+
+					{/* Show loading state while fetching location */}
+					{!longitude && !latitude && !locationError && (
+						<Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
+							Getting your location...
+						</Typography>
+					)}
 
 
 					<table>
