@@ -188,8 +188,10 @@ const StudioSchedule = () => {
 
 		fetch(url)
 			.then((response) => {
-				if (response.status === 404) {
+				if (!response.ok) {
+					// If studio not found or any error, redirect to studios page
 					navigate('/studios');
+					throw new Error('Studio not found');
 				}
 				return response.json();
 			})
@@ -198,15 +200,34 @@ const StudioSchedule = () => {
 				setTotalItem(json.count);
 				console.log('fetching');
 				console.log(totalItem);
+			})
+			.catch((error) => {
+				console.error('Error fetching classes:', error);
+				// Already navigated if 404
 			});
 
-		fetch(
-			`${API_BASE_URL}/studios/all/?longitude=${1}&latitude=${1}&offset=${0}&limit=${50}`
-		)
-			.then((res) => res.json())
-			.then((json) => {
-				setStudios(json.results);
-			});
+		// Get user's location for studios list, or use Toronto coordinates as fallback
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				fetch(
+					`${API_BASE_URL}/studios/all/?longitude=${position.coords.longitude}&latitude=${position.coords.latitude}&offset=${0}&limit=${50}`
+				)
+					.then((res) => res.json())
+					.then((json) => {
+						setStudios(json.results);
+					});
+			},
+			() => {
+				// Fallback to Toronto coordinates if geolocation fails
+				fetch(
+					`${API_BASE_URL}/studios/all/?longitude=${-79.3832}&latitude=${43.6532}&offset=${0}&limit=${50}`
+				)
+					.then((res) => res.json())
+					.then((json) => {
+						setStudios(json.results);
+					});
+			}
+		);
 	}, [studioID, query, reload]);
 
 	return (

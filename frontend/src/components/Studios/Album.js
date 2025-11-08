@@ -21,91 +21,100 @@ import TextField from '@mui/material/TextField';
 
 import Button from '@mui/material/Button';
 
+import useFPS from '../../hooks/FPS';
+
 const theme = createTheme();
 
 
 
 export default function Album() {
 
-    const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
-    const navigate = useNavigate();
+  const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
+  const navigate = useNavigate();
 
-    const [query, setQuery] = useState({
-      search: '', 
-      page: 0,
-      class_name: '',
-      class_coach: '',
-      amenity_type: '',
-      name: ''
-    });
+  const [query, setQuery] = useState({
+    search: '', 
+    page: 0,
+    class_name: '',
+    class_coach: '',
+    amenity_type: '',
+    name: ''
+  });
 
+  const [totalItem, setTotalItem] = useState(1);
+  const [longitude, setLongitude] = useState(null);
+  const [latitude, setLatitude] = useState(null);
+  const [studios, setStudios] = useState();
+  const [locationError, setLocationError] = useState('');
+  const [fps, avgFps] = useFPS(5000);
+  const [mode, setMode] = useState('standard');
 
+  // ref used to debounce the search input
+  const searchTimeout = useRef(null);
 
-    const [totalItem, setTotalItem] = useState(1);
-    const [longitude, setLongitude] = useState(null);
-    const [latitude, setLatitude] = useState(null);
-    const [studios, setStudios] = useState();
-    const [locationError, setLocationError] = useState('');
-
-    // ref used to debounce the search input
-    const searchTimeout = useRef(null);
-
-    // Get user's location once on mount
-    useEffect(() => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLatitude(position.coords.latitude);
-            setLongitude(position.coords.longitude);
-          },
-          (error) => {
-            switch(error.code) {
-              case error.PERMISSION_DENIED:
-                setLocationError("Location access denied. Please enable in browser settings.");
-                break;
-              case error.POSITION_UNAVAILABLE:
-                setLocationError("Location information unavailable.");
-                break;
-              case error.TIMEOUT:
-                setLocationError("Location request timed out.");
-                break;
-              default:
-                setLocationError("An unknown error occurred.");
-            }
+  // Get user's location once on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLatitude(position.coords.latitude);
+          setLongitude(position.coords.longitude);
+        },
+        (error) => {
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              setLocationError("Location access denied. Please enable in browser settings.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              setLocationError("Location information unavailable.");
+              break;
+            case error.TIMEOUT:
+              setLocationError("Location request timed out.");
+              break;
+            default:
+              setLocationError("An unknown error occurred.");
           }
-        );
-      } else {
-        setLocationError("Geolocation is not supported by this browser.");
-      }
-    }, []);
-    
-    useEffect(() => {
-      // Only fetch when we have valid coordinates
-      if (longitude !== null && latitude !== null) {
-        fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * 9}&limit=9`)
-          .then(res => res.json())
-          .then(json => {
-            setStudios(json.results)
-            setTotalItem(json.count);
-          })
-      }
-    }, [longitude, latitude, JSON.stringify(query)])
-
-    // handler used by TextField (debounced)
-    function handleSearchChange(event) {
-      const value = event.target.value;
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      searchTimeout.current = setTimeout(() => {
-        setQuery(prev => ({ ...prev, search: value, page: 0 }));
-      }, 300); // 300ms debounce
+        }
+      );
+    } else {
+      setLocationError("Geolocation is not supported by this browser.");
     }
+  }, []);
+  
+  useEffect(() => {
+    // Only fetch when we have valid coordinates
+    if (longitude !== null && latitude !== null) {
+      fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * 9}&limit=9`)
+        .then(res => res.json())
+        .then(json => {
+          setStudios(json.results)
+          setTotalItem(json.count);
+        })
+    }
+  }, [longitude, latitude, JSON.stringify(query)])
 
-    // clear debounce timer on unmount
-    useEffect(() => {
-      return () => {
-        if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      };
-    }, []);
+  // handler used by TextField (debounced)
+  function handleSearchChange(event) {
+    const value = event.target.value;
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setQuery(prev => ({ ...prev, search: value, page: 0 }));
+    }, 300); // 300ms debounce
+  }
+
+  // clear debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
+
+  // 
+  useEffect(()  => {
+    if (avgFps < 30) {
+      setMode('degraded')
+    }
+  })
     
   if (!studios) return <></>;
 
@@ -173,10 +182,8 @@ export default function Album() {
               Getting your location...
             </Typography>
           )}
-
         
-        
-        {isLoaded && studios &&
+        {isLoaded && studios && mode === 'standard' &&
             <GoogleMap zoom={10} center={{lat: 44, lng: -80}} mapContainerClassName="map-container">
               
               {          

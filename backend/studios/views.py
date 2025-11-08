@@ -37,12 +37,9 @@ class DetailsView(APIView):
         
         for image in images.objects.all():
             if image.studio == target:
-                absolute_url = (
-                    self.request.build_absolute_uri("/").strip("/")
-                    + settings.MEDIA_URL
-                    + str(image.image)
-                )
-                temp.append(absolute_url)
+                # Return relative URL instead of absolute
+                # image.image.url returns '/media/images/filename.png'
+                temp.append(image.image.url)
 
         amenities = []
         for a in amenity.objects.all():

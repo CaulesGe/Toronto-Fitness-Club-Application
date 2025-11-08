@@ -86,6 +86,33 @@ function MyAccount() {
 
 const NavLinks = (props) => {
 	let token = localStorage.getItem('token');
+	const [firstStudioId, setFirstStudioId] = useState(null);
+	const navigate = useNavigate();
+
+	// Fetch the first studio ID on mount
+	useEffect(() => {
+		// Use Toronto coordinates as default
+		fetch(`${process.env.REACT_APP_API_BASE_URL || '/api'}/studios/all/?longitude=${-79.3832}&latitude=${43.6532}&offset=${0}&limit=${1}`)
+			.then((res) => res.json())
+			.then((json) => {
+				if (json.results && json.results.length > 0) {
+					setFirstStudioId(json.results[0].id);
+				}
+			})
+			.catch((error) => {
+				console.error('Error fetching first studio:', error);
+			});
+	}, []);
+
+	const handleClassesClick = (e) => {
+		if (firstStudioId) {
+			navigate(`/classes/${firstStudioId}`);
+		} else {
+			// Fallback to studios page if no studio found
+			navigate('/studios');
+		}
+		e.preventDefault();
+	};
 
 	return (
 		<ul className="nav-links">
@@ -93,7 +120,9 @@ const NavLinks = (props) => {
 				<NavLink to="/studios" onClick={() => window.location.replace('/studios')}>STUDIOS</NavLink>
 			</li>
 			<li>
-				<NavLink to="/classes/1">CLASSES</NavLink>
+				<NavLink to={firstStudioId ? `/classes/${firstStudioId}` : '/studios'} onClick={handleClassesClick}>
+					CLASSES
+				</NavLink>
 			</li>
 
 			<li>
