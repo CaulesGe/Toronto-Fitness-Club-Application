@@ -145,7 +145,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 # MEDIA_URL = "media/"      local development
-MEDIA_URL = "/media/"  # production
+MEDIA_URL = "/media/"       # production
 
 
 GOOGLE_API_KEY = "AIzaSyBfaW89nc3b8xbaPgwuCU2wP1bpTNzSg28"

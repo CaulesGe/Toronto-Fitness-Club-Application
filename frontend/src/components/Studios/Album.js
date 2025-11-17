@@ -12,16 +12,17 @@ import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import React, {useState, useEffect, useMemo, useRef} from "react";
-import { Link, useNavigate } from 'react-router-dom';
+import {useState, useEffect, useMemo, useRef} from "react";
+import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../../config';
 import './Album.css';
-import {GoogleMap, useLoadScript, MarkerF} from '@react-google-maps/api';
+import { useLoadScript } from '@react-google-maps/api';
 import TextField from '@mui/material/TextField';
 
 import Button from '@mui/material/Button';
 
-import useFPS from '../../hooks/FPS';
+import useAdaptiveMode from '../../hooks/AdaptiveMode';
+import Map from './Map';
 
 const theme = createTheme();
 
@@ -30,7 +31,7 @@ const theme = createTheme();
 export default function Album() {
 
   const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
-  const navigate = useNavigate();
+
 
   const [query, setQuery] = useState({
     search: '', 
@@ -46,8 +47,12 @@ export default function Album() {
   const [latitude, setLatitude] = useState(null);
   const [studios, setStudios] = useState();
   const [locationError, setLocationError] = useState('');
-  const [fps, avgFps] = useFPS(5000);
-  const [mode, setMode] = useState('standard');
+  //const [fps, avgFps] = useFPS(5000);
+  //const netWorkInfo = useNetworkInfo();
+  const mode = useAdaptiveMode();
+  const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  //const [probe, setProbe] = useState(null);
+
 
   // ref used to debounce the search input
   const searchTimeout = useRef(null);
@@ -84,14 +89,14 @@ export default function Album() {
   useEffect(() => {
     // Only fetch when we have valid coordinates
     if (longitude !== null && latitude !== null) {
-      fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * 9}&limit=9`)
+      fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`)
         .then(res => res.json())
         .then(json => {
           setStudios(json.results)
           setTotalItem(json.count);
         })
     }
-  }, [longitude, latitude, JSON.stringify(query)])
+  }, [longitude, latitude, JSON.stringify(query), pageSize]);
 
   // handler used by TextField (debounced)
   function handleSearchChange(event) {
@@ -108,25 +113,68 @@ export default function Album() {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
   }, []);
+  
 
-  // 
-  useEffect(()  => {
-    if (avgFps < 30) {
-      setMode('degraded')
-    }
-  })
-    
+  // Adjust map and page size based on performance
+  // async function probeNetwork() {
+  //   const start = performance.now();
+  //   // Tiny resource (cache-busting)
+  //   const url = '/favicon.ico?_probe=' + Math.random();
+  //   try {
+  //     const res = await fetch(url, { cache: 'no-store' });
+  //     const blob = await res.blob(); // read so it's measured
+  //     const duration = performance.now() - start; // ms
+  //     // Very rough downlink estimate: bytes / seconds
+  //     const kb = blob.size / 1024;
+  //     const seconds = Math.max(duration / 1000, 0.001);
+  //     const kbps = (kb / seconds);
+  //     return { duration, kbps };
+  //   } catch (err) {
+  //     return { error: true, err };
+  //   }
+  // }
+
+  // useEffect(() => {
+  //   async function runProbe() {
+  //     const result = await probeNetwork();
+  //     setProbe(result);
+  //   }
+
+  //   runProbe();
+  //   const interval = setInterval(runProbe, 5000);
+
+  //   return () => clearInterval(interval);
+  // }, []);
+
+  // const networkPoor = useMemo(() => {
+  //   if (!netWorkInfo.supported) return false; // don't punish when unknown
+  //   const slowType = netWorkInfo.effectiveType === "slow-2g" || netWorkInfo.effectiveType === "2g" || netWorkInfo.effectiveType === "3g";
+  //   const lowDownlink = typeof netWorkInfo.downlink === "number" && netWorkInfo.downlink < 1.5; // Mbps threshold
+  //   const highRtt = typeof netWorkInfo.rtt === "number" && netWorkInfo.rtt > 300;
+  //   const lowKbps = probe && probe.kbps < 150;
+  //   return slowType || lowDownlink || highRtt || lowKbps;
+  // }, [netWorkInfo, probe]);
+
+  // useEffect(()  => {
+  //   if (mode === 'standard' && (avgFps < 30 || networkPoor)) {
+  //     setMode('degraded')
+  //     setPageSize(3);
+  //   } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
+  //     setMode('standard')
+  //     setPageSize(9);
+  //   }
+  //   console.log(`Mode: ${mode}, Avg FPS: ${avgFps}, Network Poor: ${networkPoor}`)
+  // }, [avgFps, networkPoor, mode])
+
+
   if (!studios) return <></>;
 
 
 
   return (
     <>
-
-    <ThemeProvider theme={theme}> 
-    
+    <ThemeProvider theme={theme}>
       <CssBaseline />
-      
       <main>
 
         {/* Hero unit */}
@@ -184,20 +232,7 @@ export default function Album() {
           )}
         
         {isLoaded && studios && mode === 'standard' &&
-            <GoogleMap zoom={10} center={{lat: 44, lng: -80}} mapContainerClassName="map-container">
-              
-              {          
-                    studios.map((studio, index) => {
-                     return (
-                       <MarkerF
-                         key={index}
-                         position={{lat: studio.latitude, lng: studio.longitude}}
-                         label={studio.name}
-                         onClick={() => navigate(`/studios/${studio.id}/details/`)}
-                       />
-                     )
-                    })}
-            </GoogleMap>  
+            <Map studios={studios} />
         }  
         
               <div className="searching">
@@ -231,7 +266,7 @@ export default function Album() {
                           // 16:9
                           pt: '16.25%',
                         }}
-                        src={require('./gym.jpg')}
+                        src={mode === 'standard' ? require('./gym.jpg') : require('./gym_low_res.jpg')}
                         alt="random"
                   />
                   <CardContent sx={{ flexGrow: 1 }}>
@@ -248,8 +283,6 @@ export default function Album() {
                     <Link to={`${studio.id}/details`} size="small">View</Link>
                   </CardActions>
                 </Card>
-
-
               </Grid>
             ))}
           </Grid>
@@ -263,7 +296,7 @@ export default function Album() {
 			  </Button> : <></> 
         }
 
-        {query.page < Math.ceil(totalItem / 9) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
+        {query.page < Math.ceil(totalItem / pageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
 					Next
 			  </Button> : <></>}
       </div>
