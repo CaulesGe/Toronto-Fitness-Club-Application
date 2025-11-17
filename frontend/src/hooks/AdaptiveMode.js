@@ -54,7 +54,7 @@ export default function useAdaptiveMode() {
         } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
           setMode('standard')
         }
-        console.log(`Mode: ${mode}, Avg FPS: ${avgFps}, Network Poor: ${networkPoor}`)
+        //console.log(`Mode: ${mode}, Avg FPS: ${avgFps}, Network Poor: ${networkPoor}`)
     }, [avgFps, networkPoor, mode])
 
     return mode;

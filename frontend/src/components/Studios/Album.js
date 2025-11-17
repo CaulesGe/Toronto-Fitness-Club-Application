@@ -45,7 +45,8 @@ export default function Album() {
   const [totalItem, setTotalItem] = useState(1);
   const [longitude, setLongitude] = useState(null);
   const [latitude, setLatitude] = useState(null);
-  const [studios, setStudios] = useState();
+  const [studios, setStudios] = useState();            // page slice (paginated)
+  const [allStudios, setAllStudios] = useState([]);    // full set for map markers
   const [locationError, setLocationError] = useState('');
   //const [fps, avgFps] = useFPS(5000);
   //const netWorkInfo = useNetworkInfo();
@@ -86,17 +87,31 @@ export default function Album() {
     }
   }, []);
   
+  // Fetch paginated slice
   useEffect(() => {
-    // Only fetch when we have valid coordinates
     if (longitude !== null && latitude !== null) {
-      fetch(`${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`)
+      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`;
+      fetch(url)
         .then(res => res.json())
         .then(json => {
-          setStudios(json.results)
+          setStudios(json.results);
           setTotalItem(json.count);
-        })
+        });
     }
-  }, [longitude, latitude, JSON.stringify(query), pageSize]);
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page, pageSize]);
+
+  // Fetch full list (for map markers) independent of pagination
+  useEffect(() => {
+    if (longitude !== null && latitude !== null && mode !== 'standard') {
+      // Use a large limit; could be replaced with backend support for no pagination
+      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=0&limit=500`;
+      fetch(url)
+        .then(res => res.json())
+        .then(json => {
+          setAllStudios(json.results || []);
+        });
+    }
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name]);
 
   // handler used by TextField (debounced)
   function handleSearchChange(event) {
@@ -231,8 +246,8 @@ export default function Album() {
             </Typography>
           )}
         
-        {isLoaded && studios && mode === 'standard' &&
-            <Map studios={studios} />
+        {isLoaded && mode === 'standard' &&
+          <Map studios={allStudios} />
         }  
         
               <div className="searching">
