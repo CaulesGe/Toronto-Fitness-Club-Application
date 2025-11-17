@@ -30,7 +30,7 @@ runCase() {
 
   sleep 5
 
-  JMETER_RESULTS="./jmeter/data/JmeterResults-${CASE}.jtl"
+  JMETER_RESULTS="./data/JmeterResults-${CASE}.jtl"
   jmeter -n -f -t jmeter/startup.jmx \
     -l "${JMETER_RESULTS}" \
     -Jsummariser.name=summary \
@@ -82,7 +82,7 @@ DELAY=10
 
 oc scale deployment --all --replicas=1 -n acmeair-group1
 
-mkdir -p ./jmeter/data
+mkdir -p ./data
 
 if [[ "${PRESSURE}" == "all" ]]; then
   for CASE in high medium low; do
