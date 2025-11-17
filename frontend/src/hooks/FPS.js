@@ -40,5 +40,5 @@ export default function useFPS(windowMs = 5000) {
         return () => cancelAnimationFrame(rafRef.current);
     }, [windowMs]);
 
-    return { fps, avgFps };
+    return [ fps, avgFps ];
 }

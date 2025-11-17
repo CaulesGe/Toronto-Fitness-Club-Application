@@ -8,6 +8,9 @@ import queue
 import argparse
 import csv
 import os
+import requests
+import numpy as np
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--start", type=int)
@@ -23,6 +26,29 @@ mode = args.mode
 
 aSlot = 10
 time.sleep(5)
+
+# Function to fetch P95 latency from Django Prometheus metrics
+
+PROM_URL = "http://prometheus:9090/api/v1/query"
+
+def get_p95_latency():
+    query = """
+    histogram_quantile(
+        0.95,
+        sum(rate(view_latency_seconds_bucket[5m])) by (le)
+    )
+    """
+    r = requests.get(PROM_URL, params={"query": query})
+    data = r.json()
+
+    if data["status"] != "success":
+        raise Exception("Prometheus query failed")
+
+    # result is a list; usually one item
+    value = float(data["data"]["result"][0]["value"][1])
+    return value  # seconds
+    
+
 
 GUID = "6638a8a0-2a5c-446b-8f6f-3a98be082e64"
 APIKEY = "QeFoD_vEncyKex-n1jfN4mYABdpwmaJm9t8Ss9Zr7Ocz"

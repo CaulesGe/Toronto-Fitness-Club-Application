@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
+from group_8958.middleware.prometheus import metrics_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -24,4 +25,5 @@ urlpatterns = [
     path("studios/", include("studios.urls")),
     path("classes/", include("classes.urls")),
     path("subscription/", include("subscription.urls")),
+    path("metrics/", metrics_view),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

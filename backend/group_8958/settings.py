@@ -63,6 +63,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "group_8958.middleware.prometheus.PrometheusMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -70,7 +71,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware"
 ]
 
 ROOT_URLCONF = "group_8958.urls"
@@ -145,7 +146,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 # MEDIA_URL = "media/"      local development
-MEDIA_URL = "/media/"  # production
+MEDIA_URL = "/media/"       # production
 
 
 GOOGLE_API_KEY = "AIzaSyBfaW89nc3b8xbaPgwuCU2wP1bpTNzSg28"
