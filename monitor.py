@@ -320,9 +320,8 @@ while time.time() < endTime:
                 for i, metric in enumerate(metrics):
                     key = metric.get("alias") or metric["id"]
                     row[key] = values[i]
-                total_requests = row["net.error.count"] + row["net.request.count"]
-                if total_requests:
-                    row["errorRate"] = row["net.error.count"] / total_requests
+                if row["net.http.request.count"]:
+                    row["errorRate"] = row["net.http.error.count"] / row["net.http.request.count"]
                 else:
                     row["errorRate"] = 0
 
