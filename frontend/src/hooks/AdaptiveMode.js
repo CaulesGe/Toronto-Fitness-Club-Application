@@ -8,6 +8,10 @@ export default function useAdaptiveMode() {
     const networkInfo = useNetworkInfo();
     const [fps, avgFps] = useFPS(5000);
     const [probe, setProbe] = useState(null);
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+        if (probe && avgFps != null) setReady(true);
+    }, [probe, avgFps]);
 
     async function probeNetwork() {
         const start = performance.now();
@@ -44,17 +48,23 @@ export default function useAdaptiveMode() {
         const slowType = networkInfo.effectiveType === "slow-2g" || networkInfo.effectiveType === "2g" || networkInfo.effectiveType === "3g";
         const lowDownlink = typeof networkInfo.downlink === "number" && networkInfo.downlink < 1.5; // Mbps threshold
         const highRtt = typeof networkInfo.rtt === "number" && networkInfo.rtt > 300;
-        const lowKbps = probe && probe.kbps < 150;
-        return slowType || lowDownlink || highRtt || lowKbps;
+        const lowKbps = probe && probe.kbps < 50;
+        console.log(`Network Info: type=${networkInfo.effectiveType}, downlink=${networkInfo.downlink}Mbps, rtt=${networkInfo.rtt}ms, probeKbps=${probe ? probe.kbps : 'N/A'}`);
+        if (lowKbps) {  
+          return slowType || lowDownlink || highRtt || lowKbps;
+        } else {
+          return slowType || lowDownlink || highRtt;
+        }
     }, [networkInfo, probe]);
 
     useEffect(()  => {
+        if (!ready) return;
         if (mode === 'standard' && (avgFps < 30 || networkPoor)) {
           setMode('degraded')
         } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
           setMode('standard')
         }
-        //console.log(`Mode: ${mode}, Avg FPS: ${avgFps}, Network Poor: ${networkPoor}`)
+        console.log(`Mode: ${mode}`)
     }, [avgFps, networkPoor, mode])
 
     return mode;

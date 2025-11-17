@@ -111,7 +111,7 @@ export default function Album() {
           setAllStudios(json.results || []);
         });
     }
-  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name]);
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, mode]);
 
   // handler used by TextField (debounced)
   function handleSearchChange(event) {

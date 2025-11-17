@@ -19,7 +19,7 @@ FRONTEND_DOCKERFILE="${FRONTEND_DIR}/Dockerfile"
 NEW_TAG=$(date +%Y%m%d%H%M%S)
 
 echo "Detecting OpenShift project and registry..."
-EXTERNAL_REGISTRY=$(oc get route image-registry -n openshift-image-registry --template='{{ .spec.host }}')
+EXTERNAL_REGISTRY=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
 PROJECT_NAME=$(oc project -q)
 
 if [[ ${1} == "" ]]
