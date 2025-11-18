@@ -153,26 +153,24 @@ metrics = [
 ]
 
 
-# Function to fetch P95 latency from Django Prometheus metrics
-PROM_URL = "http://prometheus:9090/api/v1/query"
+# # Function to fetch P95 latency from Django Prometheus metrics
+# PROM_URL = "http://prometheus:9090/api/v1/query"
+# def get_p95_latency():
+#     query = """
+#     histogram_quantile(
+#         0.95,
+#         sum(rate(view_latency_seconds_bucket[5m])) by (le)
+#     )
+#     """
+#     r = requests.get(PROM_URL, params={"query": query})
+#     data = r.json()
 
+#     if data["status"] != "success":
+#         raise Exception("Prometheus query failed")
 
-def get_p95_latency():
-    query = """
-    histogram_quantile(
-        0.95,
-        sum(rate(view_latency_seconds_bucket[5m])) by (le)
-    )
-    """
-    r = requests.get(PROM_URL, params={"query": query})
-    data = r.json()
-
-    if data["status"] != "success":
-        raise Exception("Prometheus query failed")
-
-    # result is a list; usually one item
-    value = float(data["data"]["result"][0]["value"][1])
-    return value  # seconds
+#     # result is a list; usually one item
+#     value = float(data["data"]["result"][0]["value"][1])
+#     return value  # seconds
 
 
 def analysis(
@@ -182,7 +180,7 @@ def analysis(
     errorRate,
     cpuCoresUsed,
     time,
-    p95_latency_seconds,
+    #p95_latency_seconds,
 ):
     ResponseTime_threshold = 1000
     TransactionPerSecond_threshold = 900
@@ -193,16 +191,16 @@ def analysis(
     avg_transactionPerSecond_based_on_1 = (
         transactionPerSecond / TransactionPerSecond_threshold
     )
-    p95_value = (
-        p95_latency_seconds if p95_latency_seconds is not None else P95_threshold
-    )
-    p95_latency_based_on_1 = min(p95_value / P95_threshold, 1)
+    # p95_value = (
+    #     p95_latency_seconds if p95_latency_seconds is not None else P95_threshold
+    # )
+    # p95_latency_based_on_1 = min(p95_value / P95_threshold, 1)
 
     w_transaction_time = 0.15
     w_response_time = 0.25
     w_accurate_rate = 0.4
     w_cpu_core_used = 0.1
-    w_p95_latency = 0.1
+    # w_p95_latency = 0.1
 
     utilityResult = max(
         0,
@@ -210,7 +208,7 @@ def analysis(
         + w_transaction_time * avg_transactionPerSecond_based_on_1
         + w_cpu_core_used * (1 - cpuCoresUsed)
         + w_accurate_rate * (1 - errorRate)
-        + w_p95_latency * (1 - p95_latency_based_on_1),
+        # + w_p95_latency * (1 - p95_latency_based_on_1),
     )
 
     if cpuCoresUsed > 0.4:
@@ -308,14 +306,14 @@ fieldnames = (
     + ["errorRate", "averageResponseTimeMs", "transactionPerSecond"]
 )
 file_exists = os.path.isfile(data_consistency_path)
-cached_p95_latency = None
-last_p95_fetch = 0
+# cached_p95_latency = None
+# last_p95_fetch = 0
 
 while time.time() < endTime:
-    now = time.time()
-    if cached_p95_latency is None or now - last_p95_fetch >= aSlot:
-        cached_p95_latency = get_p95_latency()
-        last_p95_fetch = now
+    # now = time.time()
+    # if cached_p95_latency is None or now - last_p95_fetch >= aSlot:
+    #     cached_p95_latency = get_p95_latency()
+    #     last_p95_fetch = now
 
     for service in microservices:
         filter = f'kubernetes.namespace.name="acmeair-group1" and kubernetes.deployment.name="{service}"'
@@ -359,7 +357,7 @@ while time.time() < endTime:
                     row["errorRate"],
                     row["cpu.cores.used"],
                     timestamp,
-                    cached_p95_latency,
+                    # cached_p95_latency,
                 )
 
                 with open(data_consistency_path, "a", newline="") as csvfile:
