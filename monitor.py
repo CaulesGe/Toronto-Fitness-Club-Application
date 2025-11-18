@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import sys
 from sdcclient import SdMonitorClient
 from sdcclient import IbmAuthHelper
 import subprocess, time
@@ -9,8 +8,6 @@ import argparse
 import csv
 import os
 import requests
-import numpy as np
-import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--start", type=int)
@@ -27,29 +24,6 @@ mode = args.mode
 aSlot = 10
 time.sleep(5)
 
-# Function to fetch P95 latency from Django Prometheus metrics
-
-PROM_URL = "http://prometheus:9090/api/v1/query"
-
-def get_p95_latency():
-    query = """
-    histogram_quantile(
-        0.95,
-        sum(rate(view_latency_seconds_bucket[5m])) by (le)
-    )
-    """
-    r = requests.get(PROM_URL, params={"query": query})
-    data = r.json()
-
-    if data["status"] != "success":
-        raise Exception("Prometheus query failed")
-
-    # result is a list; usually one item
-    value = float(data["data"]["result"][0]["value"][1])
-    return value  # seconds
-    
-
-
 GUID = "6638a8a0-2a5c-446b-8f6f-3a98be082e64"
 APIKEY = "QeFoD_vEncyKex-n1jfN4mYABdpwmaJm9t8Ss9Zr7Ocz"
 URL = "https://ca-tor.monitoring.cloud.ibm.com"
@@ -57,6 +31,10 @@ NAMESPACE = "acmeair-group1"
 
 ibm_headers = IbmAuthHelper.get_headers(URL, APIKEY, GUID)
 sdclient = SdMonitorClient(sdc_url=URL, custom_headers=ibm_headers)
+
+microservices = ["tfc-backend", "tfc-frontend"]
+message_queue = queue.Queue()
+already_seen_rows = set()
 
 metrics = [
     # jvm class
@@ -174,36 +152,65 @@ metrics = [
     {"id": "thread.count", "aggregations": {"time": "timeAvg", "group": "avg"}},
 ]
 
-microservices = ["tfc-backend", "tfc-frontend"]
 
-message_queue = queue.Queue()
-already_seen_rows = set()
+# Function to fetch P95 latency from Django Prometheus metrics
+PROM_URL = "http://prometheus:9090/api/v1/query"
+
+
+def get_p95_latency():
+    query = """
+    histogram_quantile(
+        0.95,
+        sum(rate(view_latency_seconds_bucket[5m])) by (le)
+    )
+    """
+    r = requests.get(PROM_URL, params={"query": query})
+    data = r.json()
+
+    if data["status"] != "success":
+        raise Exception("Prometheus query failed")
+
+    # result is a list; usually one item
+    value = float(data["data"]["result"][0]["value"][1])
+    return value  # seconds
 
 
 def analysis(
-    service, transactionPerSecond, responseTime, errorRate, cpuCoresUsed, time
+    service,
+    transactionPerSecond,
+    responseTime,
+    errorRate,
+    cpuCoresUsed,
+    time,
+    p95_latency_seconds,
 ):
     ResponseTime_threshold = 1000
     TransactionPerSecond_threshold = 900
+    P95_threshold = 2.0
 
     # normalization
     avg_response_time_based_on_1 = responseTime / ResponseTime_threshold
     avg_transactionPerSecond_based_on_1 = (
         transactionPerSecond / TransactionPerSecond_threshold
     )
+    p95_value = (
+        p95_latency_seconds if p95_latency_seconds is not None else P95_threshold
+    )
+    p95_latency_based_on_1 = min(p95_value / P95_threshold, 1)
 
     w_transaction_time = 0.15
     w_response_time = 0.25
-    w_accurate_rate = 0.5
+    w_accurate_rate = 0.4
     w_cpu_core_used = 0.1
+    w_p95_latency = 0.1
 
-    # goal: decrease responseTime, increase transaction rate, reduce error rate
     utilityResult = max(
         0,
         w_response_time * (1 - min(avg_response_time_based_on_1, 1))
         + w_transaction_time * avg_transactionPerSecond_based_on_1
         + w_cpu_core_used * (1 - cpuCoresUsed)
-        + w_accurate_rate * (1 - errorRate),
+        + w_accurate_rate * (1 - errorRate)
+        + w_p95_latency * (1 - p95_latency_based_on_1),
     )
 
     if cpuCoresUsed > 0.4:
@@ -266,7 +273,9 @@ def scaleHander(service, reason, mode):
             print("no available pod")
             return
         elif now - last < coolDown:
-            print(f" {service} already scale {mode} so we need to wait for a moment to cool down.")
+            print(
+                f" {service} already scale {mode} so we need to wait for a moment to cool down."
+            )
             return
         target = cur + 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
@@ -277,7 +286,9 @@ def scaleHander(service, reason, mode):
             print(f"{service} only has 1 pod so cannot scale down.")
             return
         elif now - last < (coolDown * 3):
-            print(f" {service} already scale {mode} so we need to wait for a moment to cool down.")
+            print(
+                f" {service} already scale {mode} so we need to wait for a moment to cool down."
+            )
             return
         target = cur - 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
@@ -288,7 +299,7 @@ def scaleHander(service, reason, mode):
         lastAdaption[service] = now
     else:
         print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
-        
+
 
 data_consistency_path = f"data/monitorResult-{testcase}-{mode}.csv"
 fieldnames = (
@@ -297,8 +308,15 @@ fieldnames = (
     + ["errorRate", "averageResponseTimeMs", "transactionPerSecond"]
 )
 file_exists = os.path.isfile(data_consistency_path)
+cached_p95_latency = None
+last_p95_fetch = 0
 
 while time.time() < endTime:
+    now = time.time()
+    if cached_p95_latency is None or now - last_p95_fetch >= aSlot:
+        cached_p95_latency = get_p95_latency()
+        last_p95_fetch = now
+
     for service in microservices:
         filter = f'kubernetes.namespace.name="acmeair-group1" and kubernetes.deployment.name="{service}"'
         ok, res = sdclient.get_data(metrics, -aSlot, 0, aSlot, filter=filter)
@@ -321,7 +339,9 @@ while time.time() < endTime:
                     key = metric.get("alias") or metric["id"]
                     row[key] = values[i]
                 if row["net.http.request.count"]:
-                    row["errorRate"] = row["net.http.error.count"] / row["net.http.request.count"]
+                    row["errorRate"] = (
+                        row["net.http.error.count"] / row["net.http.request.count"]
+                    )
                 else:
                     row["errorRate"] = 0
 
@@ -339,6 +359,7 @@ while time.time() < endTime:
                     row["errorRate"],
                     row["cpu.cores.used"],
                     timestamp,
+                    cached_p95_latency,
                 )
 
                 with open(data_consistency_path, "a", newline="") as csvfile:
