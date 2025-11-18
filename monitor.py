@@ -8,6 +8,8 @@ import argparse
 import csv
 import os
 import requests
+import numpy as np
+from collections import defaultdict
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--start", type=int)
@@ -36,141 +38,33 @@ microservices = ["tfc-backend", "tfc-frontend"]
 message_queue = queue.Queue()
 already_seen_rows = set()
 
+# Track latency samples for P95 calculation
+latency_samples = defaultdict(list)
+MAX_SAMPLES_PER_SERVICE = 1000  # Keep rolling window
+
 metrics = [
-    # jvm class
-    {"id": "jmx_jvm_class_loaded", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "jmx_jvm_class_unloaded",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    # jvm heap
-    {
-        "id": "jmx_jvm_heap_committed",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {"id": "jmx_jvm_heap_init", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "jmx_jvm_heap_max", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "jmx_jvm_heap_used", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "jmx_jvm_heap_used_percent",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "jmx_jvm_nonHeap_committed",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {"id": "jmx_jvm_nonHeap_init", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "jmx_jvm_nonHeap_max", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "jmx_jvm_nonHeap_used", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "jmx_jvm_nonHeap_used_percent",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    # jvm gc
-    {
-        "id": "jmx_jvm_gc_global_count",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "jmx_jvm_gc_global_time",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    # jvm threads
-    {"id": "jmx_jvm_thread_count", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "jmx_jvm_thread_daemon",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
     # systems
-    {"id": "container.id"},
     {"id": "cpu.used.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
     {"id": "cpu.cores.used", "aggregations": {"time": "timeAvg", "group": "avg"}},
     {"id": "memory.used.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
     {"id": "cpu.user.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "cpu.idle.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "cpu.iowait.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "cpu.nice.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "cpu.stolen.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "cpu.system.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "fd.used.percent", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "file.error.open.count",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "file.error.total.count",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {"id": "file.bytes.in", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.iops.in", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.time.in", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.open.count", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.bytes.out", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.iops.out", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "file.time.out", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "load.average.15m", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "load.average.1m", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "load.average.5m", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "memory.bytes.available",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {"id": "memory.bytes.total", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "memory.bytes.used", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "memory.swap.bytes.available",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "memory.swap.bytes.total",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "memory.swap.bytes.used",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {"id": "memory.bytes.virtual", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {
-        "id": "net.connection.count.in",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
-    {
-        "id": "net.connection.count.out",
-        "aggregations": {"time": "timeAvg", "group": "avg"},
-    },
     {"id": "net.error.count", "aggregations": {"time": "sum", "group": "sum"}},
-    {"id": "net.bytes.in", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "net.bytes.out", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "net.tcp.queue.len", "aggregations": {"time": "timeAvg", "group": "avg"}},
     {"id": "net.request.count", "aggregations": {"time": "sum", "group": "sum"}},
     {"id": "net.request.time", "aggregations": {"time": "avg", "group": "avg"}},
     {"id": "net.http.request.count", "aggregations": {"time": "sum", "group": "sum"}},
     {"id": "net.http.error.count", "aggregations": {"time": "sum", "group": "sum"}},
     {"id": "net.http.request.time", "aggregations": {"time": "avg", "group": "avg"}},
-    {"id": "proc.count", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "system.uptime", "aggregations": {"time": "timeAvg", "group": "avg"}},
-    {"id": "thread.count", "aggregations": {"time": "timeAvg", "group": "avg"}},
+    # For P95 calculation - get percentile directly from Sysdig
+    {"id": "net.http.request.time", "aggregations": {"time": "timeAvg", "group": "p95"}}
 ]
 
 
-# # Function to fetch P95 latency from Django Prometheus metrics
-# PROM_URL = "http://prometheus:9090/api/v1/query"
-# def get_p95_latency():
-#     query = """
-#     histogram_quantile(
-#         0.95,
-#         sum(rate(view_latency_seconds_bucket[5m])) by (le)
-#     )
-#     """
-#     r = requests.get(PROM_URL, params={"query": query})
-#     data = r.json()
-
-#     if data["status"] != "success":
-#         raise Exception("Prometheus query failed")
-
-#     # result is a list; usually one item
-#     value = float(data["data"]["result"][0]["value"][1])
-#     return value  # seconds
+def calculate_p95_latency(service):
+    """Calculate P95 latency from collected samples"""
+    samples = latency_samples.get(service, [])
+    if not samples:
+        return 0
+    return np.percentile(samples, 95)
 
 
 def analysis(
@@ -180,27 +74,24 @@ def analysis(
     errorRate,
     cpuCoresUsed,
     time,
-    #p95_latency_seconds,
+    p95_latency_ms,
 ):
     ResponseTime_threshold = 1000
     TransactionPerSecond_threshold = 900
-    P95_threshold = 2.0
+    P95_threshold = 2000  # 2000ms for P95 threshold
 
     # normalization
     avg_response_time_based_on_1 = responseTime / ResponseTime_threshold
     avg_transactionPerSecond_based_on_1 = (
         transactionPerSecond / TransactionPerSecond_threshold
     )
-    # p95_value = (
-    #     p95_latency_seconds if p95_latency_seconds is not None else P95_threshold
-    # )
-    # p95_latency_based_on_1 = min(p95_value / P95_threshold, 1)
+    p95_latency_based_on_1 = min(p95_latency_ms / P95_threshold, 1)
 
     w_transaction_time = 0.15
-    w_response_time = 0.25
-    w_accurate_rate = 0.4
+    w_response_time = 0.2
+    w_accurate_rate = 0.35
     w_cpu_core_used = 0.1
-    # w_p95_latency = 0.1
+    w_p95_latency = 0.2
 
     utilityResult = max(
         0,
@@ -208,18 +99,21 @@ def analysis(
         + w_transaction_time * avg_transactionPerSecond_based_on_1
         + w_cpu_core_used * (1 - cpuCoresUsed)
         + w_accurate_rate * (1 - errorRate)
-        # + w_p95_latency * (1 - p95_latency_based_on_1),
+        + w_p95_latency * (1 - p95_latency_based_on_1),
     )
 
     if cpuCoresUsed > 0.4:
         reason = "high CPU usage"
         direction = "up"
+    elif p95_latency_ms > P95_threshold:
+        reason = "high P95 latency"
+        direction = "up"
+    elif responseTime > 2000:
+        reason = "high response time"
+        direction = "up"    
     elif cpuCoresUsed < 0.1:
         reason = "low CPU usage"
         direction = "down"
-    elif responseTime > 2000:
-        reason = "high response time"
-        direction = "up"
     else:
         reason = None
 
@@ -254,7 +148,7 @@ def get_current_pods_number(deploy):
         return 0
 
 
-available_pods_number = 18
+available_pods_number = 16
 lastAdaption = {}
 coolDown = 30
 
@@ -303,18 +197,11 @@ data_consistency_path = f"data/monitorResult-{testcase}-{mode}.csv"
 fieldnames = (
     ["timestamp", "service"]
     + [m.get("alias") or m["id"] for m in metrics]
-    + ["errorRate", "averageResponseTimeMs", "transactionPerSecond"]
+    + ["errorRate", "averageResponseTimeMs", "transactionPerSecond", "p95LatencyMs"]
 )
 file_exists = os.path.isfile(data_consistency_path)
-# cached_p95_latency = None
-# last_p95_fetch = 0
 
 while time.time() < endTime:
-    # now = time.time()
-    # if cached_p95_latency is None or now - last_p95_fetch >= aSlot:
-    #     cached_p95_latency = get_p95_latency()
-    #     last_p95_fetch = now
-
     for service in microservices:
         filter = f'kubernetes.namespace.name="acmeair-group1" and kubernetes.deployment.name="{service}"'
         ok, res = sdclient.get_data(metrics, -aSlot, 0, aSlot, filter=filter)
@@ -346,9 +233,18 @@ while time.time() < endTime:
                 if row["net.http.request.count"]:
                     avg_ms = row["net.http.request.time"] / 1e6
                     row["averageResponseTimeMs"] = avg_ms
+                    # Track latency sample for P95 calculation
+                    latency_samples[service].append(avg_ms)
+                    if len(latency_samples[service]) > MAX_SAMPLES_PER_SERVICE:
+                        latency_samples[service].pop(0)
                 else:
                     row["averageResponseTimeMs"] = 0
                 row["transactionPerSecond"] = row["net.http.request.count"] / aSlot
+                
+                # Get P95 from Sysdig directly (last metric in list) or calculate from samples
+                p95_from_sysdig = values[-1] / 1e6 if values[-1] else 0  # Convert to ms
+                p95_from_samples = calculate_p95_latency(service)
+                row["p95LatencyMs"] = p95_from_sysdig if p95_from_sysdig > 0 else p95_from_samples
 
                 analysis(
                     service,
@@ -357,7 +253,7 @@ while time.time() < endTime:
                     row["errorRate"],
                     row["cpu.cores.used"],
                     timestamp,
-                    # cached_p95_latency,
+                    row["p95LatencyMs"],
                 )
 
                 with open(data_consistency_path, "a", newline="") as csvfile:

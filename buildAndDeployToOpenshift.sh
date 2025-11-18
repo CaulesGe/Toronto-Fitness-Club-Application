@@ -19,7 +19,8 @@ FRONTEND_DOCKERFILE="${FRONTEND_DIR}/Dockerfile"
 NEW_TAG=$(date +%Y%m%d%H%M%S)
 
 echo "Detecting OpenShift project and registry..."
-EXTERNAL_REGISTRY=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
+# get OpenShift internal registry route
+EXTERNAL_REGISTRY=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}') 
 PROJECT_NAME=$(oc project -q)
 
 if [[ ${1} == "" ]]
@@ -45,6 +46,7 @@ then
   exit
 fi
 
+# Define image prefixes
 IMAGE_PREFIX_EXTERNAL=${EXTERNAL_REGISTRY}/${PROJECT_NAME}
 IMAGE_PREFIX_INTERNAL=image-registry.openshift-image-registry.svc:5000/${PROJECT_NAME}
 
@@ -115,7 +117,7 @@ if [[ ! -f "${FRONTEND_DOCKERFILE}" ]]; then
   exit 1
 fi
 
-# Get backend route to pass to frontend build
+# Get backend route to pass to frontend build, the one used in config.js
 BACKEND_ROUTE=$(oc get route/${APP_BACKEND_NAME} -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
 if [[ -z "${BACKEND_ROUTE}" ]]; then
   echo "Warning: Backend route not found. Frontend will default to localhost:8000 for local dev."

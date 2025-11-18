@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tfc-backend-service-monitor
+  labels:
+    team: backend
+spec:
+  selector:
+    matchLabels:
+      app: tfc-backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s
