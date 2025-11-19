@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     "accounts",
     "classes",
     "studios",
+    "group_8958.apps.Group8958Config",
+    "studios.apps.StudiosConfig",
     "subscription",
     "corsheaders",
 ]
@@ -177,3 +179,5 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# Redis cache settings

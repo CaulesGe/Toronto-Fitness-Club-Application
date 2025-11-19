@@ -13,7 +13,15 @@ from rest_framework import filters
 
 from geopy import distance
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import LimitOffsetPagination
+from group_8958.pagination import AdaptiveLimitOffsetPagination
+from group_8958.feature_flags import is_degraded_mode
+from group_8958.redis_client import redis_client
+
+
+import json
+
+
+
 # Create your views here.
 
 
@@ -100,7 +108,7 @@ class studioView(ListAPIView):
         "classes__coach",
     )
     filterset_class = StudioFilter
-    pagination_class = LimitOffsetPagination
+    pagination_class = AdaptiveLimitOffsetPagination
     
     lookup_url_kwarg1 = "longitude"
     lookup_url_kwarg2 = "latitude"
@@ -126,27 +134,53 @@ class studioView(ListAPIView):
     
     def list(self, request, *args, **kwargs):
         # Get the filtered queryset (after search/filter backends are applied)
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        # Get user coordinates
-        longitude = float(request.query_params.get('longitude'))
-        latitude = float(request.query_params.get('latitude'))
-        
-        # Calculate distances and sort
-        studios_with_distance = []
-        for s in queryset:
-            d = distance.distance((latitude, longitude), (s.latitude, s.longitude)).km
-            s.distance = d  # Add as attribute (not saved to DB)
-            studios_with_distance.append(s)
-        
-        # Sort by distance
-        studios_with_distance.sort(key=lambda x: x.distance)
-        
-        # Paginate the sorted results
-        page = self.paginate_queryset(studios_with_distance)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        studios = self.filter_queryset(self.get_queryset())
+        degraded = is_degraded_mode()
 
-        serializer = self.get_serializer(studios_with_distance, many=True)
-        return Response(serializer.data)
+        if degraded:
+            # ignore user location and return cached paginated results if available
+            params = request.query_params.copy()
+            params.pop("longitude", None)
+            params.pop("latitude", None)
+            normalized_query = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
+            cache_key = f"studios:degraded:{normalized_query}"
+
+            cached = redis_client.get(cache_key)
+            if cached is not None:
+                # 'cached' is the dict we stored earlier (paginated or not)
+                data = json.loads(cached)
+                return Response(data)
+
+            # Paginate the sorted results
+            page = self.paginate_queryset(studios)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(studios, many=True)
+            data = serializer.data
+            redis_client.setex(cache_key, 600, json.dumps(data))  # 60s TTL
+            return Response(data)
+        else:
+            # Get user coordinates
+            longitude = float(request.query_params.get('longitude'))
+            latitude = float(request.query_params.get('latitude'))
+            
+            # Calculate distances and sort
+            studios_with_distance = []
+            for s in studios:
+                d = distance.distance((latitude, longitude), (s.latitude, s.longitude)).km
+                s.distance = d  # Add as attribute (not saved to DB)
+                studios_with_distance.append(s)
+            
+            # Sort by distance
+            studios_with_distance.sort(key=lambda x: x.distance)
+            
+            # Paginate the sorted results
+            page = self.paginate_queryset(studios_with_distance)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(studios_with_distance, many=True)
+            return Response(serializer.data)

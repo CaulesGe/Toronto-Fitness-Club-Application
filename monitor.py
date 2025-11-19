@@ -10,6 +10,8 @@ import os
 import requests
 import numpy as np
 from collections import defaultdict
+import json
+import redis
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--start", type=int)
@@ -30,6 +32,9 @@ GUID = "6638a8a0-2a5c-446b-8f6f-3a98be082e64"
 APIKEY = "QeFoD_vEncyKex-n1jfN4mYABdpwmaJm9t8Ss9Zr7Ocz"
 URL = "https://ca-tor.monitoring.cloud.ibm.com"
 NAMESPACE = "acmeair-group1"
+
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+r = redis.from_url(REDIS_URL)
 
 ibm_headers = IbmAuthHelper.get_headers(URL, APIKEY, GUID)
 sdclient = SdMonitorClient(sdc_url=URL, custom_headers=ibm_headers)
@@ -153,44 +158,87 @@ lastAdaption = {}
 coolDown = 30
 
 
-def scaleHander(service, reason, mode):
+def scaleHander(service, reason, direction):
     global available_pods_number
     now = time.time()
     last = lastAdaption.get(service, 0)
+
     if not service:
         return
+
+    dir_lower = direction.lower()   # normalize once
     cur = get_current_pods_number(service)
-    if mode == "up" or mode == "UP":
+
+    # Safeguards
+    if cur is None:
+        print(f"[Scaler][ERROR] Could not get current replicas for {service}")
+        return
+
+    if dir_lower == "up":
+        # Cooldown for scaling up
+        if now - last < coolDown:
+            print(f"{service} already scaled up recently; cooling down.")
+            return
+
+        # No free pods left in global pool → enable degraded mode and stop
         if available_pods_number < 1:
-            print("no available pod")
+            print("No available pod in pool, enabling degraded mode.")
+            set_degraded_mode(enabled=True,
+                              reason="no available pod, degraded performance")
             return
-        elif now - last < coolDown:
-            print(
-                f" {service} already scale {mode} so we need to wait for a moment to cool down."
-            )
-            return
+
         target = cur + 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
-        available_pods_number = available_pods_number - 1
 
-    elif mode == "down" or mode == "DOWN":
+        if out.returncode == 0:
+            available_pods_number -= 1   # only change pool on success
+            print(f"[Scaler] {service}: {cur} → {target} replicas ({reason})")
+            lastAdaption[service] = now
+        else:
+            print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+
+    elif dir_lower == "down":
+        # Longer cooldown for scaling down
+        if now - last < (coolDown * 3):
+            print(f"{service} already scaled down recently; cooling down.")
+            return
+
         if cur <= 1:
-            print(f"{service} only has 1 pod so cannot scale down.")
+            print(f"{service} has only 1 replica; will not scale down.")
             return
-        elif now - last < (coolDown * 3):
-            print(
-                f" {service} already scale {mode} so we need to wait for a moment to cool down."
-            )
-            return
+
+        # Were we previously at max capacity (0 free pods)?
+        was_saturated = (available_pods_number == 0)
+
         target = cur - 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
-        available_pods_number = available_pods_number + 1
 
-    if out.returncode == 0:
-        print(f"[Scaler] {service}: {cur} → {target} replicas ({reason})")
-        lastAdaption[service] = now
+        if out.returncode == 0:
+            available_pods_number += 1   # we freed one pod in the global pool
+            print(f"[Scaler] {service}: {cur} → {target} replicas ({reason})")
+            lastAdaption[service] = now
+
+            # If we had no free pods before and now we do,
+            # it is safe to go back to standard mode.
+            if was_saturated and available_pods_number > 0:
+                set_degraded_mode(enabled=False,
+                                  reason="back to standard mode")
+        else:
+            print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+
     else:
-        print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+        print(f"[Scaler][WARN] Unknown direction '{direction}' for {service}")
+        return
+
+
+def set_degraded_mode(enabled, reason):
+    value = "true" if enabled else "false"
+    r.set("flags:degraded_mode", value)
+    if reason:
+        r.set("flags:degrade_reason", reason)
+    # notify all backends
+    r.publish("channels:flags", json.dumps({"flag": "degraded_mode", "value": value, "reason": reason}))
+    print(f"[monitor] degraded_mode set to {value} ({reason})")
 
 
 data_consistency_path = f"data/monitorResult-{testcase}-{mode}.csv"

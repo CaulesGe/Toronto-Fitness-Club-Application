@@ -128,59 +128,6 @@ export default function Album() {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
   }, []);
-  
-
-  // Adjust map and page size based on performance
-  // async function probeNetwork() {
-  //   const start = performance.now();
-  //   // Tiny resource (cache-busting)
-  //   const url = '/favicon.ico?_probe=' + Math.random();
-  //   try {
-  //     const res = await fetch(url, { cache: 'no-store' });
-  //     const blob = await res.blob(); // read so it's measured
-  //     const duration = performance.now() - start; // ms
-  //     // Very rough downlink estimate: bytes / seconds
-  //     const kb = blob.size / 1024;
-  //     const seconds = Math.max(duration / 1000, 0.001);
-  //     const kbps = (kb / seconds);
-  //     return { duration, kbps };
-  //   } catch (err) {
-  //     return { error: true, err };
-  //   }
-  // }
-
-  // useEffect(() => {
-  //   async function runProbe() {
-  //     const result = await probeNetwork();
-  //     setProbe(result);
-  //   }
-
-  //   runProbe();
-  //   const interval = setInterval(runProbe, 5000);
-
-  //   return () => clearInterval(interval);
-  // }, []);
-
-  // const networkPoor = useMemo(() => {
-  //   if (!netWorkInfo.supported) return false; // don't punish when unknown
-  //   const slowType = netWorkInfo.effectiveType === "slow-2g" || netWorkInfo.effectiveType === "2g" || netWorkInfo.effectiveType === "3g";
-  //   const lowDownlink = typeof netWorkInfo.downlink === "number" && netWorkInfo.downlink < 1.5; // Mbps threshold
-  //   const highRtt = typeof netWorkInfo.rtt === "number" && netWorkInfo.rtt > 300;
-  //   const lowKbps = probe && probe.kbps < 150;
-  //   return slowType || lowDownlink || highRtt || lowKbps;
-  // }, [netWorkInfo, probe]);
-
-  // useEffect(()  => {
-  //   if (mode === 'standard' && (avgFps < 30 || networkPoor)) {
-  //     setMode('degraded')
-  //     setPageSize(3);
-  //   } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
-  //     setMode('standard')
-  //     setPageSize(9);
-  //   }
-  //   console.log(`Mode: ${mode}, Avg FPS: ${avgFps}, Network Poor: ${networkPoor}`)
-  // }, [avgFps, networkPoor, mode])
-
 
   if (!studios) return <></>;
 
