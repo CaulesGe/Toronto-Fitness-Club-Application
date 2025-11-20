@@ -33,7 +33,7 @@ class studio(models.Model):
 class images(models.Model):
     studio = models.ForeignKey(to=studio, on_delete=models.CASCADE)
     image = models.ImageField(null=True, blank=True, upload_to="images/")
-
+    image_small = models.ImageField(upload_to="studio_images_small/", null=True, blank=True)
 
 class amenity(models.Model):
     studio = models.ForeignKey(

@@ -59,7 +59,6 @@ INSTALLED_APPS = [
     "classes",
     "studios",
     "group_8958.apps.Group8958Config",
-    "studios.apps.StudiosConfig",
     "subscription",
     "corsheaders",
 ]

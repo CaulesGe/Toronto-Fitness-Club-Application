@@ -16,7 +16,7 @@ from rest_framework.exceptions import ValidationError
 from group_8958.pagination import AdaptiveLimitOffsetPagination
 from group_8958.feature_flags import is_degraded_mode
 from group_8958.redis_client import redis_client
-
+import random
 
 import json
 
@@ -28,7 +28,8 @@ import json
 class DetailsView(APIView):
     def get(self, request, *args, **kwargs):
         target = get_object_or_404(studio, id=kwargs["studio_id"])
-        temp = []
+        degraded = is_degraded_mode()
+        
         
         # Get user location from query parameters instead of IP geolocation
         longitude = request.query_params.get('longitude')
@@ -43,11 +44,15 @@ class DetailsView(APIView):
             # If no coordinates provided, set distance as None or 0
             distance_km = None
         
+        image_urls = []
         for image in images.objects.all():
             if image.studio == target:
                 # Return relative URL instead of absolute
                 # image.image.url returns '/media/images/filename.png'
-                temp.append(image.image.url)
+                if degraded and image.image_small:
+                    image_urls.append(image.image_small.url)   # low-res
+                else:
+                    image_urls.append(image.image.url)         # normal
 
         amenities = []
         for a in amenity.objects.all():
@@ -62,7 +67,7 @@ class DetailsView(APIView):
             "postal code": target.postal_code,
             "phone number": target.phone_number,
             "amenities": amenities,
-            "images": temp,
+            "images": image_urls,
         }
         
         if distance_km is not None:
@@ -155,12 +160,24 @@ class studioView(ListAPIView):
             page = self.paginate_queryset(studios)
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
-                return self.get_paginated_response(serializer.data)
-
+                paginated_response = self.get_paginated_response(serializer.data)
+                redis_client.setex(
+                    cache_key,
+                    600 + random.randint(1, 60),
+                    json.dumps(paginated_response.data),
+                )
+                return paginated_response
+            
             serializer = self.get_serializer(studios, many=True)
-            data = serializer.data
-            redis_client.setex(cache_key, 600, json.dumps(data))  # 60s TTL
-            return Response(data)
+            response = Response(serializer.data)
+
+            redis_client.setex(
+                cache_key,
+                600 + random.randint(1, 60),
+                json.dumps(response.data),
+            )
+            return response
+                
         else:
             # Get user coordinates
             longitude = float(request.query_params.get('longitude'))

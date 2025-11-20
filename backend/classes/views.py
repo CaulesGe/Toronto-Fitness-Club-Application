@@ -14,6 +14,10 @@ from classes.models import Class, Event
 from studios.models import studio
 from subscription.models import Subscription
 
+from group_8958.feature_flags import is_degraded_mode
+from group_8958.redis_client import redis_client
+import json
+import random
 
 class HasValidSubscription(BasePermission):
     message = "Account does not have valid subscription"
@@ -64,14 +68,35 @@ class StudioClassView(ListAPIView):
     def get_queryset(self):
         st = get_object_or_404(studio, id=self.kwargs["studio_id"])
         classes = Class.objects.filter(studio=st)
-        events = (
+        return (
             Event.objects.filter(
                 classInfo__in=classes, date__gte=date.today(), cancelled=False
             )
             .exclude(date=date.today(), start_time__lte=datetime.now().time())
             .order_by("date", "start_time")
         )
-        return events
+
+    def list(self, request, *args, **kwargs):
+        st = get_object_or_404(studio, id=self.kwargs["studio_id"])
+
+        cache_key = f"studio_{st.id}_classes"
+
+        cached = redis_client.get(cache_key)
+        if cached:
+            data = json.loads(cached)
+            return Response(data)
+
+        # Let DRF handle filter + pagination + serialization
+        response = super().list(request, *args, **kwargs)
+
+        # Cache full response shape (includes pagination metadata if enabled)
+        redis_client.setex(
+            cache_key,
+            600 + random.randint(1, 60),  # 10 min + jitter
+            json.dumps(response.data),
+        )
+
+        return response
 
 
 class EnrollEventView(APIView):

@@ -9,6 +9,8 @@ export default function useAdaptiveMode() {
     const [fps, avgFps] = useFPS(5000);
     const [probe, setProbe] = useState(null);
     const [ready, setReady] = useState(false);
+    const [lowKbpsCount, setLowKbpsCount] = useState(0);
+
     useEffect(() => {
         if (probe && avgFps != null) setReady(true);
     }, [probe, avgFps]);
@@ -18,16 +20,16 @@ export default function useAdaptiveMode() {
         // Tiny resource (cache-busting)
         const url = '/favicon.ico?_probe=' + Math.random();
         try {
-        const res = await fetch(url, { cache: 'no-store' });
-        const blob = await res.blob(); // read so it's measured
-        const duration = performance.now() - start; // ms
-        // Very rough downlink estimate: bytes / seconds
-        const kb = blob.size / 1024;
-        const seconds = Math.max(duration / 1000, 0.001);
-        const kbps = (kb / seconds);
-        return { duration, kbps };
+          const res = await fetch(url, { cache: 'no-store' });
+          const blob = await res.blob(); // read so it's measured
+          const duration = performance.now() - start; // ms
+          // Very rough downlink estimate: bytes / seconds
+          const kb = blob.size / 1024;
+          const seconds = Math.max(duration / 1000, 0.001);
+          const kbps = (kb / seconds);
+          return { duration, kbps };
         } catch (err) {
-        return { error: true, err };
+          return { error: true, err };
         }
     }
 
@@ -42,20 +44,26 @@ export default function useAdaptiveMode() {
     
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+      if (probe && probe.kbps < 40) {
+          setLowKbpsCount(c => c + 1);   // functional update (important!)
+      } else {
+          // Optionally reset counter on good probe
+          setLowKbpsCount(0);
+      }
+    }, [probe]);
     
     const networkPoor = useMemo(() => {
         if (!networkInfo.supported) return false; // don't punish when unknown
         const slowType = networkInfo.effectiveType === "slow-2g" || networkInfo.effectiveType === "2g" || networkInfo.effectiveType === "3g";
         const lowDownlink = typeof networkInfo.downlink === "number" && networkInfo.downlink < 1.5; // Mbps threshold
         const highRtt = typeof networkInfo.rtt === "number" && networkInfo.rtt > 300;
-        const lowKbps = probe && probe.kbps < 50;
+        const consecutiveLowKbps = lowKbpsCount >= 2;
         console.log(`Network Info: type=${networkInfo.effectiveType}, downlink=${networkInfo.downlink}Mbps, rtt=${networkInfo.rtt}ms, probeKbps=${probe ? probe.kbps : 'N/A'}`);
-        if (lowKbps) {  
-          return slowType || lowDownlink || highRtt || lowKbps;
-        } else {
-          return slowType || lowDownlink || highRtt;
-        }
-    }, [networkInfo, probe]);
+
+        return slowType || lowDownlink || highRtt || consecutiveLowKbps;
+    }, [networkInfo, probe, lowKbpsCount]);
 
     useEffect(()  => {
         if (!ready) return;
@@ -64,7 +72,7 @@ export default function useAdaptiveMode() {
         } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
           setMode('standard')
         }
-        console.log(`Mode: ${mode}`)
+        //console.log(`Mode: ${mode}`)
     }, [avgFps, networkPoor, mode])
 
     return mode;
