@@ -115,11 +115,15 @@ export default function Album() {
 
   // handler used by TextField (debounced)
   function handleSearchChange(event) {
+    let debountTime = 300;
+    if (mode === 'degraded') {
+      debountTime = 1000;
+    }
     const value = event.target.value;
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
       setQuery(prev => ({ ...prev, search: value, page: 0 }));
-    }, 300); // 300ms debounce
+    }, debountTime); // debounce
   }
 
   // clear debounce timer on unmount
