@@ -7,7 +7,6 @@ import queue
 import argparse
 import csv
 import os
-import requests
 import numpy as np
 from collections import defaultdict
 import json
@@ -59,8 +58,6 @@ metrics = [
     {"id": "net.http.request.count", "aggregations": {"time": "sum", "group": "sum"}},
     {"id": "net.http.error.count", "aggregations": {"time": "sum", "group": "sum"}},
     {"id": "net.http.request.time", "aggregations": {"time": "avg", "group": "avg"}},
-    # For P95 calculation - get percentile directly from Sysdig
-    {"id": "net.http.request.time", "aggregations": {"time": "timeAvg", "group": "p95"}}
 ]
 
 
@@ -289,10 +286,7 @@ while time.time() < endTime:
                     row["averageResponseTimeMs"] = 0
                 row["transactionPerSecond"] = row["net.http.request.count"] / aSlot
                 
-                # Get P95 from Sysdig directly (last metric in list) or calculate from samples
-                p95_from_sysdig = values[-1] / 1e6 if values[-1] else 0  # Convert to ms
-                p95_from_samples = calculate_p95_latency(service)
-                row["p95LatencyMs"] = p95_from_sysdig if p95_from_sysdig > 0 else p95_from_samples
+                row["p95LatencyMs"] = calculate_p95_latency(service)
 
                 analysis(
                     service,
