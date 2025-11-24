@@ -9,7 +9,7 @@ pick_load() {
     THREAD=100
     ;;
   high)
-    THREAD=200
+    THREAD=1000
     ;;
   *)
     echo "Syntax: $0 [low|medium|high|all] [baseline|adapt]"
@@ -61,6 +61,19 @@ runCase() {
   fi
 }
 
+start_port_forward() {
+  oc -n acmeair-group1 port-forward svc/redis 6379:6379 >/dev/null &
+  PORT_FORWARD_PID=$!
+  sleep 2
+}
+
+stop_port_forward() {
+  if [[ -n "${PORT_FORWARD_PID:-}" ]]; then
+    kill "${PORT_FORWARD_PID}" >/dev/null || true
+    unset PORT_FORWARD_PID
+  fi
+}
+
 # methods finished
 
 set -euo pipefail
@@ -79,17 +92,22 @@ PORT=443
 DURATION=60
 RAMP=0
 DELAY=10
+export REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"
 
 oc scale deployment --all --replicas=1 -n acmeair-group1
+start_port_forward
+trap stop_port_forward EXIT INT TERM
 
 mkdir -p ./data
 
 if [[ "${PRESSURE}" == "all" ]]; then
   for CASE in high medium low; do
+    oc exec deploy/redis -n acmeair-group1 -- redis-cli FLUSHDB >/dev/null || true
     runCase "${CASE}"
     echo "Waiting ${COOL_DOWN_TIME} seconds before next test case..."
     sleep "${COOL_DOWN_TIME}"
   done
 else
+  oc exec deploy/redis -n acmeair-group1 -- redis-cli FLUSHDB >/dev/null || true
   runCase "${PRESSURE}"
 fi
