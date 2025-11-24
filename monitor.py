@@ -150,7 +150,7 @@ def get_current_pods_number(deploy):
         return 0
 
 
-available_pods_number = 16
+available_pods_number = 2
 lastAdaption = {}
 coolDown = 30
 
