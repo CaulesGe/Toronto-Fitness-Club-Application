@@ -118,7 +118,7 @@ def analysis(
         direction = "down"
     else:
         reason = None
-
+    print(f"mode={mode}, reason={reason}")
     if reason and mode == "adapt":
         scaleHander(service, reason, direction)
 
@@ -150,13 +150,14 @@ def get_current_pods_number(deploy):
         return 0
 
 
-available_pods_number = 2
+available_pods_number = 3
 lastAdaption = {}
 coolDown = 30
 
 
 def scaleHander(service, reason, direction):
     global available_pods_number
+    print("available_pods_number:", available_pods_number)
     now = time.time()
     last = lastAdaption.get(service, 0)
 
@@ -193,6 +194,8 @@ def scaleHander(service, reason, direction):
             lastAdaption[service] = now
         else:
             print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+        
+        return
 
     elif dir_lower == "down":
         # Longer cooldown for scaling down
@@ -222,6 +225,7 @@ def scaleHander(service, reason, direction):
                                   reason="back to standard mode")
         else:
             print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+        return
 
     else:
         print(f"[Scaler][WARN] Unknown direction '{direction}' for {service}")

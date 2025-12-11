@@ -4,7 +4,7 @@ import useFPS from "./FPS";
 import { useEffect, useMemo, useState } from "react";
 
 export default function useAdaptiveMode() {
-    const [mode, setMode] = useState('standard');
+    const [mode, setMode] = useState('degraded');
     const networkInfo = useNetworkInfo();
     const [fps, avgFps] = useFPS(5000);
     const [probe, setProbe] = useState(null);

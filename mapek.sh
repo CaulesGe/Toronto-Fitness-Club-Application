@@ -25,7 +25,7 @@ runCase() {
   START_TIME=$(date +%s)
   END_TIME=$((START_TIME + DURATION + COOL_DOWN_TIME + 30))
 
-  python3 monitor.py --start "${START_TIME}" --end "${END_TIME}" --testcase "${CASE}" --mode "${MODE}" &
+  python monitor.py --start "${START_TIME}" --end "${END_TIME}" --testcase "${CASE}" --mode "${MODE}" &
   MONITOR_PID=$!
 
   sleep 5

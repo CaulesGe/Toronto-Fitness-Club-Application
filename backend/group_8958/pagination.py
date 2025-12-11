@@ -17,7 +17,7 @@ class AdaptiveLimitOffsetPagination(LimitOffsetPagination):
         # If client didn’t give ?limit=, DRF will use default_limit
         if is_degraded_mode():
             # force a smaller page size in degraded mode
-            degraded_limit = 3
+            degraded_limit = 6
 
             # If client asks for something bigger, cap it
             if limit is None:

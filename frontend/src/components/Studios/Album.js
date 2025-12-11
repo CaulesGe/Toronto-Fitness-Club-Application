@@ -23,6 +23,7 @@ import Button from '@mui/material/Button';
 
 import useAdaptiveMode from '../../hooks/AdaptiveMode';
 import Map from './Map';
+import MapWrapper from './MapWrapper';
 
 const theme = createTheme();
 
@@ -30,7 +31,7 @@ const theme = createTheme();
 
 export default function Album() {
 
-  const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
+  //const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
 
 
   const [query, setQuery] = useState({
@@ -52,8 +53,14 @@ export default function Album() {
   //const netWorkInfo = useNetworkInfo();
   const mode = useAdaptiveMode();
   const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  const [showMap, setShowMap] = useState(false);
   //const [probe, setProbe] = useState(null);
 
+  useEffect(() => {
+    if (mode === 'standard') {
+      setShowMap(true);
+    }
+  }, [mode]);
 
   // ref used to debounce the search input
   const searchTimeout = useRef(null);
@@ -102,7 +109,7 @@ export default function Album() {
 
   // Fetch full list (for map markers) independent of pagination
   useEffect(() => {
-    if (longitude !== null && latitude !== null && mode !== 'standard') {
+    if (longitude !== null && latitude !== null && mode === 'standard') {
       // Use a large limit; could be replaced with backend support for no pagination
       const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=0&limit=500`;
       fetch(url)
@@ -110,6 +117,9 @@ export default function Album() {
         .then(json => {
           setAllStudios(json.results || []);
         });
+    } else if (mode === 'degraded') {
+      // optional: free memory / avoid stale heavy state
+      setAllStudios([]);
     }
   }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, mode]);
 
@@ -197,27 +207,31 @@ export default function Album() {
             </Typography>
           )}
         
-        {isLoaded && mode === 'standard' &&
-          <Map studios={allStudios} />
-        }  
+          {/* {isLoaded && mode === 'standard' &&
+            <Map studios={allStudios} mode={mode} />
+          }   */}
+          {showMap && (
+            <MapWrapper
+              studios={mode === 'standard' ? allStudios : (studios || [])}
+              mode={mode}
+            />
+          )}
         
-              <div className="searching">
-                  <h1 id='search'>Search</h1><br />
+          <div className="searching">
+            <h1 id='search'>Search</h1><br />
 
-          <TextField
-                      className='input'
-                      id="outlined-basic"
-                      label="Studio, Amenity, Class, Coach"
-                      variant="outlined"
-            onChange={handleSearchChange}
-                    />
-
-            </div>
-
+            <TextField
+              className='input'
+              id="outlined-basic"
+              label="Studio, Amenity, Class, Coach"
+              variant="outlined"
+              onChange={handleSearchChange}
+            />
+          </div>
 
           <Grid container spacing={4}>
    
-            {isLoaded && studios && studios.map((studio, index) => (
+            {studios && studios.map((studio, index) => (
               
               <Grid item key={index} xs={12} sm={6} md={4}>
 
