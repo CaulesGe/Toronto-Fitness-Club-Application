@@ -12,7 +12,7 @@ export default function MapWrapper({ studios, mode, longitude, latitude }) {
   return (
     <>
       {mode === "degraded" && (
-        <div style={{ color: "red", marginBottom: "8px" }}>
+        <div style={{ color: "red", marginBottom: "8px", textAlign: "center" }}>
           You are in lightweight mode. The map is static and shows a limited
           number of studios.
         </div>

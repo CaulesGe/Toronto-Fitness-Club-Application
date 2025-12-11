@@ -69,9 +69,12 @@ export default function useAdaptiveMode() {
         if (!ready) return;
         if (mode === 'standard' && (avgFps < 30 || networkPoor)) {
           setMode('degraded')
-        } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
-          setMode('standard')
-        }
+        } else if (mode === 'degraded') {
+          if (avgFps >= 30 && !networkPoor && probe && !probe.error && probe.kbps >= 40 ) {
+            setMode('standard')
+          }
+        } 
+        
         //console.log(`Mode: ${mode}`)
     }, [avgFps, networkPoor, mode])
 

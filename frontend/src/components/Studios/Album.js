@@ -22,7 +22,6 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 
 import useAdaptiveMode from '../../hooks/AdaptiveMode';
-import Map from './Map';
 import MapWrapper from './MapWrapper';
 
 const theme = createTheme();
@@ -57,9 +56,10 @@ export default function Album() {
   //const [probe, setProbe] = useState(null);
 
   useEffect(() => {
-    if (mode === 'standard') {
+    if (mode && mode === 'standard') {
       setShowMap(true);
     }
+    console.log("Adaptive mode in Album.js:", mode);
   }, [mode]);
 
   // ref used to debounce the search input
