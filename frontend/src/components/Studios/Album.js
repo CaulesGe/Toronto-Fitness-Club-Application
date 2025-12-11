@@ -214,6 +214,8 @@ export default function Album() {
             <MapWrapper
               studios={mode === 'standard' ? allStudios : (studios || [])}
               mode={mode}
+              longitude={longitude}
+              latitude={latitude}
             />
           )}
         

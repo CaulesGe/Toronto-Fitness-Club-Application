@@ -2,20 +2,27 @@ import React, { useMemo, useCallback } from "react";
 import { GoogleMap, MarkerF } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
 
-export default React.memo(function Map({studios, mode}) {
+export default React.memo(function Map({studios, mode, longitude, latitude}) {
     const navigate = useNavigate();
     const handleMarkerClick = useCallback(id => navigate(`/studios/${id}/details/`), [navigate]);
 
     const center = useMemo(() => {
-        if (!studios || studios.length === 0) {
-        return { lat: 43.6532, lng: -79.3832 }; // fallback: Toronto
+        if (!longitude || !latitude) {
+            if (!studios || studios.length === 0) {
+                return { lat: 43.6532, lng: -79.3832 }; // fallback: Toronto
+            }
+            // center on first studio
+            return {
+                lat: studios[0].latitude,
+                lng: studios[0].longitude,
+            };
         }
         // e.g., center on first studio
         return {
-            lat: studios[0].latitude,
-            lng: studios[0].longitude,
+            lat: latitude,
+            lng: longitude,
         };
-    }, [studios]);
+    }, [studios, latitude, longitude]);
     
     // Degradation: limit markers in degraded mode
     const effectiveStudios = useMemo(() => {
@@ -32,6 +39,8 @@ export default React.memo(function Map({studios, mode}) {
                 // full interactivity
                 disableDefaultUI: false,
                 gestureHandling: "greedy",
+                draggable: true,
+                scrollwheel: true,
             }
             : {
                 // degraded: static-ish map
