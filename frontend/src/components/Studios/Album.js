@@ -113,8 +113,6 @@ export default function Album() {
   // Fetch paginated slice (backend-driven pagination via next/previous URLs)
   useEffect(() => {
     if (longitude !== null && latitude !== null) {
-      // Build the first-page URL whenever filters/location/page changes.
-      // (page changes will be handled by next/prev buttons; keeping query.page in deps is fine.)
       const firstUrl = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}`;
       setPageUrl(firstUrl);
     }
@@ -133,8 +131,6 @@ export default function Album() {
         setNextUrl(normalizePageUrl(json.next));
         setPrevUrl(normalizePageUrl(json.previous));
 
-        // For your existing UI message (6 vs 9), infer server limit from URLs if present.
-        // Fallback to results length only when limit is absent.
         const urlToParse = json.next || json.previous || pageUrl;
         try {
           const u = new URL(urlToParse);
@@ -149,7 +145,6 @@ export default function Album() {
   // Fetch full list (for map markers) independent of pagination
   useEffect(() => {
     if (longitude !== null && latitude !== null && mode === 'standard') {
-      // Use a large limit; could be replaced with backend support for no pagination
       const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=0&limit=500`;
       fetch(url)
         .then(res => res.json())
@@ -157,7 +152,6 @@ export default function Album() {
           setAllStudios(json.results || []);
         });
     } else if (mode === 'degraded') {
-      // optional: free memory / avoid stale heavy state
       setAllStudios([]);
     }
   }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, mode]);
