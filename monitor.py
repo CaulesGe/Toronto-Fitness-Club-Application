@@ -28,7 +28,7 @@ aSlot = 10
 time.sleep(5)
 
 GUID = "6638a8a0-2a5c-446b-8f6f-3a98be082e64"
-APIKEY = "QeFoD_vEncyKex-n1jfN4mYABdpwmaJm9t8Ss9Zr7Ocz"
+APIKEY = ""
 URL = "https://ca-tor.monitoring.cloud.ibm.com"
 NAMESPACE = "acmeair-group1"
 
@@ -112,7 +112,7 @@ def analysis(
         direction = "up"
     elif responseTime > 2000:
         reason = "high response time"
-        direction = "up"    
+        direction = "up"
     elif cpuCoresUsed < 0.1:
         reason = "low CPU usage"
         direction = "down"
@@ -163,7 +163,7 @@ def scaleHander(service, reason, direction):
     if not service:
         return
 
-    dir_lower = direction.lower()   # normalize once
+    dir_lower = direction.lower()  # normalize once
     cur = get_current_pods_number(service)
 
     # Safeguards
@@ -180,15 +180,16 @@ def scaleHander(service, reason, direction):
         # No free pods left in global pool → enable degraded mode and stop
         if available_pods_number < 1:
             print("No available pod in pool, enabling degraded mode.")
-            set_degraded_mode(enabled=True,
-                              reason="no available pod, degraded performance")
+            set_degraded_mode(
+                enabled=True, reason="no available pod, degraded performance"
+            )
             return
 
         target = cur + 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
 
         if out.returncode == 0:
-            available_pods_number -= 1   # only change pool on success
+            available_pods_number -= 1  # only change pool on success
             print(f"[Scaler] {service}: {cur} → {target} replicas ({reason})")
             lastAdaption[service] = now
         else:
@@ -205,21 +206,20 @@ def scaleHander(service, reason, direction):
             return
 
         # Were we previously at max capacity (0 free pods)?
-        was_saturated = (available_pods_number == 0)
+        was_saturated = available_pods_number == 0
 
         target = cur - 1
         out = _oc("scale", f"deploy/{service}", f"--replicas={target}", "-n", NAMESPACE)
 
         if out.returncode == 0:
-            available_pods_number += 1   # we freed one pod in the global pool
+            available_pods_number += 1  # we freed one pod in the global pool
             print(f"[Scaler] {service}: {cur} → {target} replicas ({reason})")
             lastAdaption[service] = now
 
             # If we had no free pods before and now we do,
             # it is safe to go back to standard mode.
             if was_saturated and available_pods_number > 0:
-                set_degraded_mode(enabled=False,
-                                  reason="back to standard mode")
+                set_degraded_mode(enabled=False, reason="back to standard mode")
         else:
             print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
 
@@ -234,7 +234,10 @@ def set_degraded_mode(enabled, reason):
     if reason:
         r.set("flags:degrade_reason", reason)
     # notify all backends
-    r.publish("channels:flags", json.dumps({"flag": "degraded_mode", "value": value, "reason": reason}))
+    r.publish(
+        "channels:flags",
+        json.dumps({"flag": "degraded_mode", "value": value, "reason": reason}),
+    )
     print(f"[monitor] degraded_mode set to {value} ({reason})")
 
 
@@ -285,7 +288,7 @@ while time.time() < endTime:
                 else:
                     row["averageResponseTimeMs"] = 0
                 row["transactionPerSecond"] = row["net.http.request.count"] / aSlot
-                
+
                 row["p95LatencyMs"] = calculate_p95_latency(service)
 
                 analysis(
