@@ -251,7 +251,10 @@ fieldnames = (
 )
 file_exists = os.path.isfile(data_consistency_path)
 
+# clear redis db at start
 set_degraded_mode(enabled=False, reason="starting monitor script")
+r.flushdb()
+print("[redis] DB cleared")
 while time.time() < endTime:
     for service in microservices:
         filter = f'kubernetes.namespace.name="acmeair-group1" and kubernetes.deployment.name="{service}"'
