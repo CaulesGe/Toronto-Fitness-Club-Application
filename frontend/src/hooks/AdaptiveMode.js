@@ -4,7 +4,7 @@ import useFPS from "./FPS";
 import { useEffect, useMemo, useState } from "react";
 
 export default function useAdaptiveMode() {
-    const [mode, setMode] = useState('standard');
+    const [mode, setMode] = useState('degraded');
     const networkInfo = useNetworkInfo();
     const [fps, avgFps] = useFPS(5000);
     const [probe, setProbe] = useState(null);
@@ -69,9 +69,12 @@ export default function useAdaptiveMode() {
         if (!ready) return;
         if (mode === 'standard' && (avgFps < 30 || networkPoor)) {
           setMode('degraded')
-        } else if (mode === 'degraded' && (avgFps >= 30 && !networkPoor)) {
-          setMode('standard')
-        }
+        } else if (mode === 'degraded') {
+          if (avgFps >= 30 && !networkPoor && probe && !probe.error && probe.kbps >= 40 ) {
+            setMode('standard')
+          }
+        } 
+        
         //console.log(`Mode: ${mode}`)
     }, [avgFps, networkPoor, mode])
 

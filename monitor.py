@@ -118,7 +118,7 @@ def analysis(
         direction = "down"
     else:
         reason = None
-
+    print(f"mode={mode}, reason={reason}")
     if reason and mode == "adapt":
         scaleHander(service, reason, direction)
 
@@ -150,13 +150,14 @@ def get_current_pods_number(deploy):
         return 0
 
 
-available_pods_number = 2
+available_pods_number = 5
 lastAdaption = {}
 coolDown = 30
 
 
 def scaleHander(service, reason, direction):
     global available_pods_number
+    print("available_pods_number:", available_pods_number)
     now = time.time()
     last = lastAdaption.get(service, 0)
 
@@ -194,6 +195,8 @@ def scaleHander(service, reason, direction):
             lastAdaption[service] = now
         else:
             print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+        
+        return
 
     elif dir_lower == "down":
         # Longer cooldown for scaling down
@@ -220,8 +223,12 @@ def scaleHander(service, reason, direction):
             # it is safe to go back to standard mode.
             if was_saturated and available_pods_number > 0:
                 set_degraded_mode(enabled=False, reason="back to standard mode")
+                print("back to standard mode")
+                set_degraded_mode(enabled=False,
+                                  reason="back to standard mode")
         else:
             print(f"[Scaler][ERROR] {service}: {out.stderr or out.stdout}")
+        return
 
     else:
         print(f"[Scaler][WARN] Unknown direction '{direction}' for {service}")
@@ -249,6 +256,10 @@ fieldnames = (
 )
 file_exists = os.path.isfile(data_consistency_path)
 
+# clear redis db at start
+set_degraded_mode(enabled=False, reason="starting monitor script")
+r.flushdb()
+print("[redis] DB cleared")
 while time.time() < endTime:
     for service in microservices:
         filter = f'kubernetes.namespace.name="acmeair-group1" and kubernetes.deployment.name="{service}"'

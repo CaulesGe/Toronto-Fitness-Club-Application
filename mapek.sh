@@ -25,7 +25,7 @@ runCase() {
   START_TIME=$(date +%s)
   END_TIME=$((START_TIME + DURATION + COOL_DOWN_TIME + 30))
 
-  python3 monitor.py --start "${START_TIME}" --end "${END_TIME}" --testcase "${CASE}" --mode "${MODE}" &
+  python monitor.py --start "${START_TIME}" --end "${END_TIME}" --testcase "${CASE}" --mode "${MODE}" &
   MONITOR_PID=$!
 
   sleep 5
@@ -89,7 +89,7 @@ fi
 COOL_DOWN_TIME=60
 HOST=$(oc get route tfc-frontend -n acmeair-group1 --template='{{ .spec.host }}')
 PORT=443
-DURATION=60
+DURATION=400
 RAMP=0
 DELAY=10
 export REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"

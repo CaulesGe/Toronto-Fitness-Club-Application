@@ -3,7 +3,7 @@ from group_8958.feature_flags import is_degraded_mode
 
 class AdaptiveLimitOffsetPagination(LimitOffsetPagination):
     # normal mode default page size
-    default_limit = 20
+    default_limit = 9
     max_limit = 100
 
     def get_limit(self, request):
@@ -17,7 +17,7 @@ class AdaptiveLimitOffsetPagination(LimitOffsetPagination):
         # If client didn’t give ?limit=, DRF will use default_limit
         if is_degraded_mode():
             # force a smaller page size in degraded mode
-            degraded_limit = 3
+            degraded_limit = 6
 
             # If client asks for something bigger, cap it
             if limit is None:

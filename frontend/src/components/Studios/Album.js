@@ -22,7 +22,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 
 import useAdaptiveMode from '../../hooks/AdaptiveMode';
-import Map from './Map';
+import MapWrapper from './MapWrapper';
 
 const theme = createTheme();
 
@@ -30,7 +30,7 @@ const theme = createTheme();
 
 export default function Album() {
 
-  const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
+  //const {isLoaded} = useLoadScript({googleMapsApiKey: "AIzaSyA7SCCkx8BeyK13Jo-NDiGPkCDqxjpGt14"});
 
 
   const [query, setQuery] = useState({
@@ -48,12 +48,35 @@ export default function Album() {
   const [studios, setStudios] = useState();            // page slice (paginated)
   const [allStudios, setAllStudios] = useState([]);    // full set for map markers
   const [locationError, setLocationError] = useState('');
+  const mode = useAdaptiveMode();
   //const [fps, avgFps] = useFPS(5000);
   //const netWorkInfo = useNetworkInfo();
-  const mode = useAdaptiveMode();
-  const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  const [effectivePageSize, setEffectivePageSize] = useState(9);
+  const [pageUrl, setPageUrl] = useState(null);
+  const [nextUrl, setNextUrl] = useState(null);
+  const [prevUrl, setPrevUrl] = useState(null);
+
+  const [showMap, setShowMap] = useState(false);
   //const [probe, setProbe] = useState(null);
 
+  useEffect(() => {
+    if (mode && mode === 'standard') {
+      setShowMap(true);
+    }
+    console.log("Adaptive mode in Album.js:", mode);
+  }, [mode]);
+
+  const normalizePageUrl = (u) => {
+    if (!u) return null;
+    // If DRF returns an absolute URL to internal service, replace origin with API_BASE_URL
+    try {
+      const parsed = new URL(u);
+      return `${API_BASE_URL}${parsed.pathname}${parsed.search}`;
+    } catch {
+      // If it's already a relative path like "/api/...", make it absolute
+      return u.startsWith("/") ? `${API_BASE_URL}${u}` : u;
+    }
+  };
 
   // ref used to debounce the search input
   const searchTimeout = useRef(null);
@@ -87,29 +110,49 @@ export default function Album() {
     }
   }, []);
   
-  // Fetch paginated slice
+  // Fetch paginated slice (backend-driven pagination via next/previous URLs)
   useEffect(() => {
     if (longitude !== null && latitude !== null) {
-      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`;
-      fetch(url)
-        .then(res => res.json())
-        .then(json => {
-          setStudios(json.results);
-          setTotalItem(json.count);
-        });
+      const firstUrl = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}`;
+      setPageUrl(firstUrl);
     }
-  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page, pageSize]);
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name]);
+
+  useEffect(() => {
+    if (!pageUrl) return;
+
+    fetch(pageUrl)
+      .then(res => res.json())
+      .then(json => {
+        setStudios(json.results);
+        setTotalItem(json.count);
+
+        // backend-provided pagination links
+        setNextUrl(normalizePageUrl(json.next));
+        setPrevUrl(normalizePageUrl(json.previous));
+
+        const urlToParse = json.next || json.previous || pageUrl;
+        try {
+          const u = new URL(urlToParse);
+          const lim = u.searchParams.get("limit");
+          setEffectivePageSize(lim ? Number(lim) : (json.results?.length || 9));
+        } catch {
+          setEffectivePageSize(json.results?.length || 9);
+        }
+      });
+  }, [pageUrl]);
 
   // Fetch full list (for map markers) independent of pagination
   useEffect(() => {
-    if (longitude !== null && latitude !== null && mode !== 'standard') {
-      // Use a large limit; could be replaced with backend support for no pagination
+    if (longitude !== null && latitude !== null && mode === 'standard') {
       const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=0&limit=500`;
       fetch(url)
         .then(res => res.json())
         .then(json => {
           setAllStudios(json.results || []);
         });
+    } else if (mode === 'degraded') {
+      setAllStudios([]);
     }
   }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, mode]);
 
@@ -197,27 +240,39 @@ export default function Album() {
             </Typography>
           )}
         
-        {isLoaded && mode === 'standard' &&
-          <Map studios={allStudios} />
-        }  
+          {/* {isLoaded && mode === 'standard' &&
+            <Map studios={allStudios} mode={mode} />
+          }   */}
+          {showMap && (
+            <MapWrapper
+              studios={mode === 'standard' ? allStudios : (studios || [])}
+              mode={mode}
+              longitude={longitude}
+              latitude={latitude}
+            />
+          )}
         
-              <div className="searching">
-                  <h1 id='search'>Search</h1><br />
+          <div className="searching">
+            <h1 id='search'>Search</h1><br />
 
-          <TextField
-                      className='input'
-                      id="outlined-basic"
-                      label="Studio, Amenity, Class, Coach"
-                      variant="outlined"
-            onChange={handleSearchChange}
-                    />
+            <TextField
+              className='input'
+              id="outlined-basic"
+              label="Studio, Amenity, Class, Coach"
+              variant="outlined"
+              onChange={handleSearchChange}
+            />
+          </div>
 
-            </div>
-
+          {effectivePageSize== 6 &&
+            <Typography align="center" sx={{ mt: 2, mb: 2 }}>
+              Page size is reduced due to high workload.
+            </Typography>
+          }
 
           <Grid container spacing={4}>
    
-            {isLoaded && studios && studios.map((studio, index) => (
+            {studios && studios.map((studio, index) => (
               
               <Grid item key={index} xs={12} sm={6} md={4}>
 
@@ -256,13 +311,14 @@ export default function Album() {
       </main>
       
       <div id='page'>
-        {query.page > 0 ? 
-        <Button variant="contained" onClick={() => setQuery({...query, page: query.page - 1})}>
+        {prevUrl ? 
+        <Button variant="contained" onClick={() => setPageUrl(prevUrl)}>
 					Prev
 			  </Button> : <></> 
         }
 
-        {query.page < Math.ceil(totalItem / pageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
+        {nextUrl ? 
+        <Button variant="contained" onClick={() => setPageUrl(nextUrl)}>
 					Next
 			  </Button> : <></>}
       </div>
