@@ -89,7 +89,7 @@ fi
 COOL_DOWN_TIME=60
 HOST=$(oc get route tfc-frontend -n acmeair-group1 --template='{{ .spec.host }}')
 PORT=443
-DURATION=300
+DURATION=400
 RAMP=0
 DELAY=10
 export REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"
