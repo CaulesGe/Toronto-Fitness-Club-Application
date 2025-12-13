@@ -3,7 +3,7 @@ from group_8958.feature_flags import is_degraded_mode
 
 class AdaptiveLimitOffsetPagination(LimitOffsetPagination):
     # normal mode default page size
-    default_limit = 20
+    default_limit = 9
     max_limit = 100
 
     def get_limit(self, request):

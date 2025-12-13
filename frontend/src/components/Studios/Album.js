@@ -48,11 +48,11 @@ export default function Album() {
   const [studios, setStudios] = useState();            // page slice (paginated)
   const [allStudios, setAllStudios] = useState([]);    // full set for map markers
   const [locationError, setLocationError] = useState('');
+  const mode = useAdaptiveMode();
   //const [fps, avgFps] = useFPS(5000);
   //const netWorkInfo = useNetworkInfo();
-  const mode = useAdaptiveMode();
-  //const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
   const [effectivePageSize, setEffectivePageSize] = useState(9);
+
   const [showMap, setShowMap] = useState(false);
   //const [probe, setProbe] = useState(null);
 
@@ -98,13 +98,16 @@ export default function Album() {
   // Fetch paginated slice
   useEffect(() => {
     if (longitude !== null && latitude !== null) {
-      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * effectivePageSize}&limit=${effectivePageSize}`;
+      // Let the backend decide the actual page size (e.g., 6 or 9).
+      // We only control the offset based on the effective page size
+      // that we infer from the previous response.
+      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * effectivePageSize}`;
       fetch(url)
         .then(res => res.json())
         .then(json => {
           setStudios(json.results);
           setTotalItem(json.count);
-          setEffectivePageSize(json.results?.length || 9);
+          setEffectivePageSize(json.results?.length);
         });
     }
   }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page]);
@@ -286,7 +289,8 @@ export default function Album() {
 			  </Button> : <></> 
         }
 
-        {query.page < Math.ceil(totalItem / effectivePageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
+        {query.page < Math.ceil(totalItem / effectivePageSize) - 1 ? 
+        <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
 					Next
 			  </Button> : <></>}
       </div>
