@@ -48,10 +48,14 @@ export default function Album() {
   const [studios, setStudios] = useState();            // page slice (paginated)
   const [allStudios, setAllStudios] = useState([]);    // full set for map markers
   const [locationError, setLocationError] = useState('');
+  const mode = useAdaptiveMode();
   //const [fps, avgFps] = useFPS(5000);
   //const netWorkInfo = useNetworkInfo();
-  const mode = useAdaptiveMode();
-  const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  const [effectivePageSize, setEffectivePageSize] = useState(9);
+  const [pageUrl, setPageUrl] = useState(null);
+  const [nextUrl, setNextUrl] = useState(null);
+  const [prevUrl, setPrevUrl] = useState(null);
+
   const [showMap, setShowMap] = useState(false);
   //const [probe, setProbe] = useState(null);
 
@@ -61,6 +65,18 @@ export default function Album() {
     }
     console.log("Adaptive mode in Album.js:", mode);
   }, [mode]);
+
+  const normalizePageUrl = (u) => {
+    if (!u) return null;
+    // If DRF returns an absolute URL to internal service, replace origin with API_BASE_URL
+    try {
+      const parsed = new URL(u);
+      return `${API_BASE_URL}${parsed.pathname}${parsed.search}`;
+    } catch {
+      // If it's already a relative path like "/api/...", make it absolute
+      return u.startsWith("/") ? `${API_BASE_URL}${u}` : u;
+    }
+  };
 
   // ref used to debounce the search input
   const searchTimeout = useRef(null);
@@ -94,18 +110,41 @@ export default function Album() {
     }
   }, []);
   
-  // Fetch paginated slice
+  // Fetch paginated slice (backend-driven pagination via next/previous URLs)
   useEffect(() => {
     if (longitude !== null && latitude !== null) {
-      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`;
-      fetch(url)
-        .then(res => res.json())
-        .then(json => {
-          setStudios(json.results);
-          setTotalItem(json.count);
-        });
+      // Build the first-page URL whenever filters/location/page changes.
+      // (page changes will be handled by next/prev buttons; keeping query.page in deps is fine.)
+      const firstUrl = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}`;
+      setPageUrl(firstUrl);
     }
-  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page, pageSize]);
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name]);
+
+  useEffect(() => {
+    if (!pageUrl) return;
+
+    fetch(pageUrl)
+      .then(res => res.json())
+      .then(json => {
+        setStudios(json.results);
+        setTotalItem(json.count);
+
+        // backend-provided pagination links
+        setNextUrl(normalizePageUrl(json.next));
+        setPrevUrl(normalizePageUrl(json.previous));
+
+        // For your existing UI message (6 vs 9), infer server limit from URLs if present.
+        // Fallback to results length only when limit is absent.
+        const urlToParse = json.next || json.previous || pageUrl;
+        try {
+          const u = new URL(urlToParse);
+          const lim = u.searchParams.get("limit");
+          setEffectivePageSize(lim ? Number(lim) : (json.results?.length || 9));
+        } catch {
+          setEffectivePageSize(json.results?.length || 9);
+        }
+      });
+  }, [pageUrl]);
 
   // Fetch full list (for map markers) independent of pagination
   useEffect(() => {
@@ -231,6 +270,12 @@ export default function Album() {
             />
           </div>
 
+          {effectivePageSize== 6 &&
+            <Typography align="center" sx={{ mt: 2, mb: 2 }}>
+              Page size is reduced due to high workload.
+            </Typography>
+          }
+
           <Grid container spacing={4}>
    
             {studios && studios.map((studio, index) => (
@@ -272,13 +317,14 @@ export default function Album() {
       </main>
       
       <div id='page'>
-        {query.page > 0 ? 
-        <Button variant="contained" onClick={() => setQuery({...query, page: query.page - 1})}>
+        {prevUrl ? 
+        <Button variant="contained" onClick={() => setPageUrl(prevUrl)}>
 					Prev
 			  </Button> : <></> 
         }
 
-        {query.page < Math.ceil(totalItem / pageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
+        {nextUrl ? 
+        <Button variant="contained" onClick={() => setPageUrl(nextUrl)}>
 					Next
 			  </Button> : <></>}
       </div>
@@ -288,3 +334,4 @@ export default function Album() {
     </>
   );
 }
+
