@@ -51,7 +51,8 @@ export default function Album() {
   //const [fps, avgFps] = useFPS(5000);
   //const netWorkInfo = useNetworkInfo();
   const mode = useAdaptiveMode();
-  const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  //const pageSize = useMemo(() => (mode === 'standard' ? 9 : 6), [mode]);
+  const [effectivePageSize, setEffectivePageSize] = useState(9);
   const [showMap, setShowMap] = useState(false);
   //const [probe, setProbe] = useState(null);
 
@@ -97,15 +98,16 @@ export default function Album() {
   // Fetch paginated slice
   useEffect(() => {
     if (longitude !== null && latitude !== null) {
-      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * pageSize}&limit=${pageSize}`;
+      const url = `${API_BASE_URL}/studios/all/?search=${query.search}&class_name=${query.class_name}&class_coach=${query.class_coach}&amenity_type=${query.amenity_type}&longitude=${longitude}&latitude=${latitude}&name=${query.name}&offset=${query.page * effectivePageSize}&limit=${effectivePageSize}`;
       fetch(url)
         .then(res => res.json())
         .then(json => {
           setStudios(json.results);
           setTotalItem(json.count);
+          setEffectivePageSize(json.results?.length || 9);
         });
     }
-  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page, pageSize]);
+  }, [longitude, latitude, query.search, query.class_name, query.class_coach, query.amenity_type, query.name, query.page]);
 
   // Fetch full list (for map markers) independent of pagination
   useEffect(() => {
@@ -231,6 +233,12 @@ export default function Album() {
             />
           </div>
 
+          {effectivePageSize== 6 &&
+            <Typography align="center" sx={{ mt: 2, mb: 2 }}>
+              Page size is reduced due to high workload.
+            </Typography>
+          }
+
           <Grid container spacing={4}>
    
             {studios && studios.map((studio, index) => (
@@ -278,7 +286,7 @@ export default function Album() {
 			  </Button> : <></> 
         }
 
-        {query.page < Math.ceil(totalItem / pageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
+        {query.page < Math.ceil(totalItem / effectivePageSize) - 1 ? <Button variant="contained" onClick={() => setQuery({...query, page: query.page + 1})}>
 					Next
 			  </Button> : <></>}
       </div>

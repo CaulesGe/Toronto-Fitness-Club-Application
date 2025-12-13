@@ -150,7 +150,7 @@ def get_current_pods_number(deploy):
         return 0
 
 
-available_pods_number = 3
+available_pods_number = 5
 lastAdaption = {}
 coolDown = 30
 
@@ -221,6 +221,7 @@ def scaleHander(service, reason, direction):
             # If we had no free pods before and now we do,
             # it is safe to go back to standard mode.
             if was_saturated and available_pods_number > 0:
+                print("back to standard mode")
                 set_degraded_mode(enabled=False,
                                   reason="back to standard mode")
         else:
