@@ -2,6 +2,7 @@
 To run the workload test, use mapek.sh.
 ./mapek.sh [low|medium|high|all] [baseline|adapt]
 
+Report: G1-FinalReport.pdf
 
 # Toronto-Fitness-Club-Application
 A full stack project for CSC309, UofT
